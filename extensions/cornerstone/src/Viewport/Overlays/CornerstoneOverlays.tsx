@@ -4,6 +4,7 @@ import ViewportImageScrollbar from './ViewportImageScrollbar';
 import CustomizableViewportOverlay from './CustomizableViewportOverlay';
 import ViewportOrientationMarkers from './ViewportOrientationMarkers';
 import ViewportImageSliceLoadingIndicator from './ViewportImageSliceLoadingIndicator';
+import ProgressiveLoadingIndicator from './ProgressiveLoadingIndicator';
 
 function CornerstoneOverlays(props: withAppTypes) {
   const { viewportId, element, scrollbarHeight, servicesManager } = props;
@@ -74,6 +75,11 @@ function CornerstoneOverlays(props: withAppTypes) {
         viewportData={viewportData}
         servicesManager={servicesManager}
         viewportId={viewportId}
+      />
+
+      <ProgressiveLoadingIndicator
+        viewportId={viewportId}
+        servicesManager={servicesManager}
       />
     </div>
   );

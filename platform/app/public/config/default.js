@@ -1,5 +1,6 @@
 /** @type {AppTypes.Config} */
 
+// @ts-expect-error - Window config property is added at runtime
 window.config = {
   name: 'config/default.js',
   routerBasename: null,
@@ -103,26 +104,39 @@ window.config = {
       namespace: '@ohif/extension-default.dataSourcesModule.dicomweb',
       sourceName: 'dicomweb',
       configuration: {
-        friendlyName: 'AWS S3 Static wado server',
-        name: 'aws',
-        wadoUriRoot: 'https://d14fa38qiwhyfd.cloudfront.net/dicomweb',
-        qidoRoot: 'https://d14fa38qiwhyfd.cloudfront.net/dicomweb',
-        wadoRoot: 'https://d14fa38qiwhyfd.cloudfront.net/dicomweb',
-        qidoSupportsIncludeField: false,
-        imageRendering: 'wadors',
-        thumbnailRendering: 'wadors',
+        friendlyName: 'Local DCM4CHEE Server',
+        name: 'dcm4chee-local',
+        wadoUriRoot: 'http://localhost:32081/dcm4chee-arc/aets/DCM4CHEE/wado',
+        qidoRoot: 'http://localhost:32081/dcm4chee-arc/aets/DCM4CHEE/rs',
+        wadoRoot: 'http://localhost:32081/dcm4chee-arc/aets/DCM4CHEE/rs',
+        qidoSupportsIncludeField: true,
+        imageRendering: 'wadouri', // Use WADO-URI for progressive loading
+        thumbnailRendering: 'wadouri',
         enableStudyLazyLoad: true,
         supportsFuzzyMatching: true,
-        supportsWildcard: false,
-        staticWado: true,
+        supportsWildcard: true,
+        supportsReject: true,
+        dicomUploadEnabled: true,
+        staticWado: false,
         singlepart: 'bulkdata,video',
+        // Progressive loading configuration
+        progressiveLoading: {
+          enabled: true,
+          qualityLevels: [
+            { imageQuality: 25, name: 'low' },
+            { imageQuality: 50, name: 'medium' },
+            { imageQuality: 75, name: 'high' },
+            { imageQuality: 100, name: 'full' },
+          ],
+          loadingDelay: 1000, // 1 second between quality levels
+          autoProgressToNext: true,
+        },
         // whether the data source should use retrieveBulkData to grab metadata,
         // and in case of relative path, what would it be relative to, options
         // are in the series level or study level (some servers like series some study)
         bulkDataURI: {
           enabled: true,
           relativeResolution: 'studies',
-          transform: url => url.replace('/pixeldata.mp4', '/rendered'),
         },
         omitQuotationForMultipartRequest: true,
       },

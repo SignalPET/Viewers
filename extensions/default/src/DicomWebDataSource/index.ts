@@ -27,6 +27,16 @@ const EXPLICIT_VR_LITTLE_ENDIAN = '1.2.840.10008.1.2.1';
 
 const metadataProvider = classes.MetadataProvider;
 
+export type ProgressiveLoadingConfig = {
+  enabled: boolean;
+  qualityLevels: Array<{
+    imageQuality: number;
+    name: string;
+  }>;
+  loadingDelay: number;
+  autoProgressToNext: boolean;
+};
+
 export type DicomWebConfig = {
   /** Data source name */
   name: string;
@@ -67,6 +77,8 @@ export type DicomWebConfig = {
   enableStudyLazyLoad?: boolean;
   /** Whether to enable bulkDataURI */
   bulkDataURI?: BulkDataURIConfig;
+  /** Progressive loading configuration */
+  progressiveLoading?: ProgressiveLoadingConfig;
   /** Function that is called after the configuration is initialized */
   onConfiguration: (config: DicomWebConfig, params) => DicomWebConfig;
   /** Whether to use the static WADO client */
@@ -103,8 +115,9 @@ export type BulkDataURIConfig = {
  * @param dicomWebConfig - Configuration for the DICOM Web API
  * @returns DICOM Web API object
  */
-function createDicomWebApi(dicomWebConfig: DicomWebConfig, servicesManager) {
+function createDicomWebApi(dicomWebConfig: DicomWebConfig, servicesManager, extensionManager) {
   const { userAuthenticationService } = servicesManager.services;
+
   let dicomWebConfigCopy,
     qidoConfig,
     wadoConfig,
@@ -647,11 +660,54 @@ function createDicomWebApi(dicomWebConfig: DicomWebConfig, servicesManager) {
       return imageIds;
     },
     getImageIdsForInstance({ instance, frame = undefined }) {
+      // Check if progressive loading is enabled in configuration
+      const progressiveLoading =
+        dicomWebConfig.progressiveLoading?.enabled && dicomWebConfig.imageRendering === 'wadouri';
+
+      console.log('🔍 DataSource getImageIdsForInstance called:');
+      console.log('  - progressiveLoading config:', dicomWebConfig.progressiveLoading);
+      console.log('  - imageRendering:', dicomWebConfig.imageRendering);
+      console.log('  - progressiveLoading enabled:', progressiveLoading);
+
       const imageIds = getImageId({
         instance,
         frame,
         config: dicomWebConfig,
+        progressiveLoading,
       });
+
+      console.log('  - generated imageId:', imageIds);
+
+      // If progressive loading is enabled, trigger the progressive loading service directly
+      if (progressiveLoading) {
+        console.log('🎯 Triggering progressive loading directly...');
+        // Trigger progressive loading in the next tick to avoid blocking the main thread
+        setTimeout(() => {
+          try {
+            const { progressiveLoadingService } = servicesManager.services;
+            if (progressiveLoadingService) {
+              console.log(
+                '🎯 Progressive loading service found, calling loadImageProgressively...'
+              );
+              progressiveLoadingService.loadImageProgressively(
+                instance,
+                dicomWebConfig,
+                frame,
+                null
+              );
+              console.log('✅ Progressive loading triggered successfully');
+            } else {
+              console.warn('❌ Progressive loading service not available in servicesManager');
+            }
+          } catch (error) {
+            console.error('❌ Failed to trigger progressive loading:', error);
+          }
+        }, 100);
+      } else {
+        console.log('❌ Progressive loading NOT triggered because:');
+        console.log('  - progressiveLoading enabled:', progressiveLoading);
+      }
+
       return imageIds;
     },
     getConfig() {
