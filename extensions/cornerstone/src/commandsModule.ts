@@ -114,6 +114,7 @@ function commandsModule({
     syncGroupService,
     segmentationService,
     displaySetService,
+    progressiveLoadingService,
   } = servicesManager.services as AppTypes.Services;
 
   function _getActiveViewportEnabledElement() {
@@ -356,12 +357,12 @@ function commandsModule({
       // Create presentation data with referencedImageId and options if provided
       const presentationData = referencedImageId
         ? {
-            ...presentations.positionPresentation,
-            viewReference: {
-              referencedImageId,
-              ...options,
-            },
-          }
+          ...presentations.positionPresentation,
+          viewReference: {
+            referencedImageId,
+            ...options,
+          },
+        }
         : presentations.positionPresentation;
 
       if (previousReferencedDisplaySetStoreKey) {
@@ -1363,11 +1364,11 @@ function commandsModule({
           segmentationId,
           segments: options.createInitialSegment
             ? {
-                1: {
-                  label: `${i18n.t('Segment')} 1`,
-                  active: true,
-                },
-              }
+              1: {
+                label: `${i18n.t('Segment')} 1`,
+                active: true,
+              },
+            }
             : {},
         }
       );
@@ -2035,6 +2036,29 @@ function commandsModule({
         deleting,
       });
     },
+
+    triggerProgressiveLoading: async ({ instance, config, frame, viewportId }) => {
+      console.log('🎯 triggerProgressiveLoading command called with:', {
+        instance,
+        config,
+        frame,
+        viewportId,
+      });
+
+      if (!progressiveLoadingService) {
+        console.warn('❌ Progressive loading service not available');
+        return;
+      }
+
+      console.log('🎯 Progressive loading service found, calling loadImageProgressively...');
+
+      try {
+        await progressiveLoadingService.loadImageProgressively(instance, config, frame, viewportId);
+        console.log('✅ Progressive loading triggered successfully');
+      } catch (error) {
+        console.warn('❌ Progressive loading failed:', error);
+      }
+    },
   };
 
   const definitions = {
@@ -2331,6 +2355,9 @@ function commandsModule({
     hydrateSecondaryDisplaySet: actions.hydrateSecondaryDisplaySet,
     getVolumeIdForDisplaySet: actions.getVolumeIdForDisplaySet,
     triggerCreateAnnotationMemo: actions.triggerCreateAnnotationMemo,
+    triggerProgressiveLoading: {
+      commandFn: actions.triggerProgressiveLoading,
+    },
   };
 
   return {
