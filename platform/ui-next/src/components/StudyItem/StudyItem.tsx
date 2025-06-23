@@ -10,6 +10,7 @@ import { useSystem } from '@ohif/core';
 const StudyItem = ({
   date,
   description,
+  studyIndex,
   numInstances,
   modalities,
   isActive,
@@ -32,6 +33,7 @@ const StudyItem = ({
   if (customStudyItem) {
     return React.createElement(customStudyItem as React.ComponentType, {
       date,
+      studyIndex,
       description,
       numInstances,
       modalities,

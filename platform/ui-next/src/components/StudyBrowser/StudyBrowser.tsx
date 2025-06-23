@@ -30,13 +30,17 @@ const StudyBrowser = ({
       ? viewPresets.filter(preset => preset.selected)[0]?.id
       : 'thumbnails';
     return tabData?.studies?.map(
-      ({ studyInstanceUid, date, description, numInstances, modalities, displaySets }) => {
+      (
+        { studyInstanceUid, date, description, numInstances, modalities, displaySets },
+        studyIndex
+      ) => {
         const isExpanded = expandedStudyInstanceUIDs.includes(studyInstanceUid);
         return (
           <React.Fragment key={studyInstanceUid}>
             <StudyItem
               date={date}
               description={description}
+              studyIndex={studyIndex}
               numInstances={numInstances}
               isExpanded={isExpanded}
               displaySets={displaySets}

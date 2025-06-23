@@ -13,6 +13,8 @@ const ThumbnailList = ({
   activeDisplaySetInstanceUIDs = [],
   viewPreset,
   ThumbnailMenuItems,
+  studyIndex,
+  numInstances,
 }) => {
   // Get customized thumbnail component if available
   const { servicesManager } = useSystem();
@@ -57,7 +59,7 @@ const ThumbnailList = ({
                 isActive,
                 thumbnailType: componentType,
                 viewPreset: 'thumbnails',
-                index,
+                index: studyIndex * numInstances + index,
                 onClick: onThumbnailClick.bind(null, displaySetInstanceUID),
                 onDoubleClick: onThumbnailDoubleClick.bind(null, displaySetInstanceUID),
                 onClickUntrack: onClickUntrack.bind(null, displaySetInstanceUID),
