@@ -1,4 +1,6 @@
 import { useSystem } from '../contextProviders/SystemProvider';
+import type { ServicesManager } from '../services';
+import type { DisplaySet } from '../types';
 
 /**
  *
@@ -21,7 +23,11 @@ export function createStudyBrowserTabs(
   recentTimeframeMS = 31536000000
 ) {
   const { servicesManager } = useSystem();
-  const { displaySetService } = servicesManager.services;
+  const { displaySetService, customizationService } = servicesManager.services;
+
+  const customStudySortFunction = customizationService.getCustomization(
+    'ui.studyBrowser.sortFunction'
+  ) as (a: DisplaySet, b: DisplaySet, servicesManager: ServicesManager) => number;
 
   const shouldSortBySeriesUID = process.env.TEST_ENV === 'true';
   const primaryStudies = [];
@@ -54,6 +60,10 @@ export function createStudyBrowserTabs(
     }
     allStudies.push(tabStudy);
   });
+
+  if (customStudySortFunction) {
+    allStudies.sort((a, b) => customStudySortFunction(a, b, servicesManager));
+  }
 
   const primaryStudiesTimestamps = primaryStudies
     .filter(study => study.date)
