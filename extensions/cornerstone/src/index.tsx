@@ -57,7 +57,9 @@ import CornerstoneViewportDownloadForm from './utils/CornerstoneViewportDownload
 import utils from './utils';
 import { useMeasurementTracking } from './hooks/useMeasurementTracking';
 import { setUpSegmentationEventHandlers } from './utils/setUpSegmentationEventHandlers';
-export * from './components';
+import { RequestType } from '@cornerstonejs/core/enums';
+
+export * from './components'; // ← path relative to the file you edit
 
 const { imageRetrieveMetadataProvider } = cornerstone.utilities;
 
@@ -128,6 +130,67 @@ const cornerstoneExtension: Types.Extensions.Extension = {
     // The default stack loading option is to progressive load HTJ2K images
     // There are other possible options, but these need more thought about
     // how to define them.
+
+    const stackRetrieveOptions = {
+      stages: [
+        {
+          id: 'q1',
+          retrieveType: 'q1',
+          priority: 5,
+          requestType: RequestType.Prefetch,
+          quality: 1,
+        },
+        {
+          id: 'q30',
+          retrieveType: 'q30',
+          priority: 4,
+          requestType: RequestType.Prefetch,
+          quality: 30,
+        },
+        {
+          id: 'q60',
+          retrieveType: 'q60',
+          priority: 3,
+          requestType: RequestType.Prefetch,
+          quality: 60,
+        },
+        {
+          id: 'full',
+          retrieveType: 'full',
+          priority: 2,
+          requestType: RequestType.Interaction,
+          quality: 100,
+        },
+      ],
+      retrieveOptions: {
+        q1: {
+          framesPath: '/frames-rendered/',
+          urlArguments: 'quality=1',
+          imageQualityStatus: cs3DEnums.ImageQualityStatus.SUBRESOLUTION,
+          streaming: false,
+        },
+        q30: {
+          framesPath: '/frames-rendered/',
+          urlArguments: 'quality=30',
+          imageQualityStatus: cs3DEnums.ImageQualityStatus.LOSSY,
+          streaming: false,
+        },
+        q60: {
+          framesPath: '/frames-rendered/',
+          urlArguments: 'quality=60',
+          imageQualityStatus: cs3DEnums.ImageQualityStatus.LOSSY,
+          streaming: false,
+        },
+        full: {
+          imageQualityStatus: cs3DEnums.ImageQualityStatus.FULL_RESOLUTION,
+          framesPath: '/frames-rendered/',
+          urlArguments: 'quality=100',
+          streaming: false,
+          decodeLevel: 0,
+        },
+      },
+    };
+
     imageRetrieveMetadataProvider.add('stack', stackRetrieveOptions);
   },
   getPanelModule,
