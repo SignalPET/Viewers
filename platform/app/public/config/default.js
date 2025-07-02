@@ -174,6 +174,12 @@ window.config = {
     // above, the number of requests can be go a lot higher.
     prefetch: 25,
   },
+  studyPrefetcher: {
+    enabled: true,
+    order: 'closest',
+    displaySetCount: 3,
+    maxNumPrefetchRequests: 100,
+  },
   // Defines multi-monitor layouts
   multimonitor: [
     {
