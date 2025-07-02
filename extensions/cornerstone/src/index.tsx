@@ -5,6 +5,7 @@ import {
   Enums as cs3DEnums,
   imageLoadPoolManager,
   imageRetrievalPoolManager,
+  metaData,
 } from '@cornerstonejs/core';
 import { Enums as cs3DToolsEnums } from '@cornerstonejs/tools';
 import { Types } from '@ohif/core';
@@ -57,6 +58,10 @@ import CornerstoneViewportDownloadForm from './utils/CornerstoneViewportDownload
 import utils from './utils';
 import { useMeasurementTracking } from './hooks/useMeasurementTracking';
 import { setUpSegmentationEventHandlers } from './utils/setUpSegmentationEventHandlers';
+
+// Newly added helper modules
+import { setJpegRenderedMetadata, getJpegRenderedMetadata } from './JpegRenderedMetadataStore';
+import buildModulesFromImage from './buildModulesFromImage';
 import { RequestType } from '@cornerstonejs/core/enums';
 
 export * from './components'; // ← path relative to the file you edit
@@ -73,15 +78,6 @@ const OHIFCornerstoneViewport = props => {
       <Component {...props} />
     </React.Suspense>
   );
-};
-
-const stackRetrieveOptions = {
-  retrieveOptions: {
-    single: {
-      streaming: true,
-      decodeLevel: 1,
-    },
-  },
 };
 
 const unsubscriptions = [];
@@ -193,7 +189,7 @@ const cornerstoneExtension: Types.Extensions.Extension = {
 
     imageRetrieveMetadataProvider.add('stack', stackRetrieveOptions);
   },
-  getPanelModule,
+  getPanelModule: getPanelModule as unknown as (p: Types.Extensions.ExtensionParams) => unknown,
   onModeExit: ({ servicesManager }: withAppTypes): void => {
     unsubscriptions.forEach(unsubscribe => unsubscribe());
     // Clear the unsubscriptions
@@ -237,8 +233,35 @@ const cornerstoneExtension: Types.Extensions.Extension = {
     syncGroupService.registerCustomSynchronizer('frameview', createFrameViewSynchronizer);
 
     await init.call(this, props);
+
+    // Listen for decoded images that are added to the cache so we can
+    // generate metadata for rendered JPEGs.
+    cornerstone.eventTarget.addEventListener(
+      cornerstone.Enums.Events.IMAGE_CACHE_IMAGE_ADDED,
+      ({ detail }) => {
+        const { image } = detail;
+        const { imageId } = image;
+        console.log('[CS3D JPEG Metadata] Capturing modules for', imageId);
+        const modules = buildModulesFromImage(imageId, image.image);
+        setJpegRenderedMetadata(imageId, modules);
+      }
+    );
+
+    // Register metadata provider to serve stubbed modules for rendered JPEGs
+    metaData.addProvider((type, imageId) => {
+      console.log('[CS3D JPEG Metadata] Serving metadata of type', type, 'for', imageId);
+      const modules = getJpegRenderedMetadata(imageId);
+      if (modules) {
+        console.debug('[CS3D JPEG Metadata] HIT', type, 'for', imageId.substring(0, 100));
+        return modules[type];
+      } else {
+        console.debug('[CS3D JPEG Metadata] MISS', type, 'for', imageId);
+      }
+
+      return;
+    }, 11000);
   },
-  getToolbarModule,
+  getToolbarModule: getToolbarModule as unknown as (p: Types.Extensions.ExtensionParams) => unknown,
   getHangingProtocolModule,
   getViewportModule({ servicesManager, commandsManager }) {
     const ExtendedOHIFCornerstoneViewport = props => {
