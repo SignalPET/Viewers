@@ -1,12 +1,15 @@
-// JpegRenderedMetadataStore.ts
-// A simple in-memory store that maps imageIds of `/rendered/` JPEGs to
-// pre-computed Cornerstone metadata modules.  The store lives entirely on
-// the OHIF side so we avoid touching Cornerstone3D internals.
+// This store is used to implement progressive loading in OHIF. The issue is that
+// the metadata returned from /metadata endpoints is not the same as the metadata
+// needed for rendered JPEGs, which causes decoding errors. By managing the state
+// of JPEGs separately, we can use the correct metadata for each quality level,
+// enabling the display of rendered JPEGs at different quality levels and thus
+// supporting progressive loading of JPEGs.
+
+// The JPEG metadata is extracted from the image frame in buildModulesFromImage.ts
 
 const jpegRenderedMetadataStore: Map<string, Record<string, unknown>> = new Map();
 
 export function setJpegRenderedMetadata(imageId: string, modules: Record<string, unknown>): void {
-  console.log('[CS3D JPEG Metadata] Setting metadata for', imageId);
   jpegRenderedMetadataStore.set(imageId, modules);
 }
 

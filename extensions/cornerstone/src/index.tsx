@@ -123,23 +123,23 @@ const cornerstoneExtension: Types.Extensions.Extension = {
       'volume',
       cornerstone.ProgressiveRetrieveImages.interleavedRetrieveStages
     );
-    // The default stack loading option is to progressive load HTJ2K images
-    // There are other possible options, but these need more thought about
-    // how to define them.
 
+    // This is our progressive loading configuration. it loads a rendered version of the images,
+    // metadata is extracted from the image frame and stored in the jpegRenderedMetadataStore.
+    // This metadata is then used to correctly decode the image for each quality level.
     const stackRetrieveOptions = {
       stages: [
         {
           id: 'q1',
           retrieveType: 'q1',
-          priority: 5,
+          priority: 1,
           requestType: RequestType.Prefetch,
           quality: 1,
         },
         {
           id: 'q30',
           retrieveType: 'q30',
-          priority: 4,
+          priority: 2,
           requestType: RequestType.Prefetch,
           quality: 30,
         },
@@ -153,7 +153,7 @@ const cornerstoneExtension: Types.Extensions.Extension = {
         {
           id: 'full',
           retrieveType: 'full',
-          priority: 2,
+          priority: 4,
           requestType: RequestType.Interaction,
           quality: 100,
         },
@@ -241,25 +241,23 @@ const cornerstoneExtension: Types.Extensions.Extension = {
       ({ detail }) => {
         const { image } = detail;
         const { imageId } = image;
-        console.log('[CS3D JPEG Metadata] Capturing modules for', imageId);
         const modules = buildModulesFromImage(imageId, image.image);
         setJpegRenderedMetadata(imageId, modules);
       }
     );
 
     // Register metadata provider to serve stubbed modules for rendered JPEGs
+    // This is needed for progressive loading, as the metadata returned from the /metadata endpoint
+    // is not the same as the metadata needed for rendered JPEGs, which causes decoding errors.
+    // The metadata is extracted from the image frame in buildModulesFromImage.ts.
     metaData.addProvider((type, imageId) => {
-      console.log('[CS3D JPEG Metadata] Serving metadata of type', type, 'for', imageId);
       const modules = getJpegRenderedMetadata(imageId);
       if (modules) {
-        console.debug('[CS3D JPEG Metadata] HIT', type, 'for', imageId.substring(0, 100));
         return modules[type];
-      } else {
-        console.debug('[CS3D JPEG Metadata] MISS', type, 'for', imageId);
       }
 
       return;
-    }, 11000);
+    }, 11000); // 11000 is the priority, we want a higher priority than the /metadata endpoint (10000), to override it.
   },
   getToolbarModule: getToolbarModule as unknown as (p: Types.Extensions.ExtensionParams) => unknown,
   getHangingProtocolModule,

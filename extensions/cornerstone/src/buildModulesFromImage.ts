@@ -1,10 +1,24 @@
+/**
+ * Builds DICOM metadata modules from a rendered JPEG image for progressive loading support.
+ *
+ * This function extracts metadata from rendered JPEG images to support progressive loading
+ * functionality. When using progressive loading with JPEGs, the metadata returned from
+ * DICOM /metadata endpoints may not match the actual JPEG image data, causing decoding errors.
+ *
+ * By extracting metadata directly from the rendered JPEG image, we ensure the metadata
+ * matches the image data exactly, enabling proper decoding and display of progressive
+ * quality levels.
+ *
+ * The extracted metadata is stored in the jpegRenderedMetadataStore to be used later
+ * when the image needs to be decoded or rendered.
+ *
+ * @param imageId - The unique identifier for the image
+ * @param image - The cornerstone image object containing the imageFrame with metadata
+ * @returns Record<string, unknown> - DICOM metadata modules extracted from the image
+ */
+
 import { Enums, type Types } from '@cornerstonejs/core';
 
-/**
- * Build minimal but valid metadata modules directly from a fully–decoded Cornerstone image.
- * These are used for images served through the `/rendered/` WADO-RS route that bypass normal
- * DICOM metadata.  Add more fields as needed by the UI/tooling.
- */
 export default function buildModulesFromImage(
   imageId: string,
   image: Types.IImage
