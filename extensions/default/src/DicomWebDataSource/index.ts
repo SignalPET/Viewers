@@ -433,7 +433,10 @@ function createDicomWebApi(dicomWebConfig: DicomWebConfig, servicesManager) {
       const instancesPerSeries = {};
 
       naturalizedInstancesMetadata.forEach(instance => {
-        if (dicomWebConfig.instanceFilter != null && !dicomWebConfig.instanceFilter(initialQuery, instance)) {
+        if (
+          dicomWebConfig.instanceFilter != null &&
+          !dicomWebConfig.instanceFilter(initialQuery, instance)
+        ) {
           return;
         }
 
@@ -555,7 +558,9 @@ function createDicomWebApi(dicomWebConfig: DicomWebConfig, servicesManager) {
       // Async load series, store as retrieved
       function storeInstances(instances) {
         if (dicomWebConfig.instanceFilter != null) {
-          instances = instances.filter(instance => dicomWebConfig.instanceFilter(initialQuery, instance));
+          instances = instances.filter(instance =>
+            dicomWebConfig.instanceFilter(initialQuery, instance)
+          );
         }
         if (instances.length == 0) {
           return;

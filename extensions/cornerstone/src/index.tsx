@@ -162,7 +162,7 @@ const cornerstoneExtension: Types.Extensions.Extension = {
         q1: {
           framesPath: '/frames-rendered/',
           urlArguments: 'quality=1',
-          imageQualityStatus: cs3DEnums.ImageQualityStatus.SUBRESOLUTION,
+          imageQualityStatus: cs3DEnums.ImageQualityStatus.LOSSY,
           streaming: false,
         },
         q30: {
