@@ -63,8 +63,8 @@ import { setJpegRenderedMetadata } from './signalpet-metadata-fixes/JpegRendered
 import buildModulesFromImage from './signalpet-metadata-fixes/buildModulesFromImage';
 
 import { RequestType } from '@cornerstonejs/core/enums';
-import { corruptedDicomFixedMetaDataProvider } from './signalpet-metadata-fixes/metadata-providers/CorruptedDicomFixedMetaDataProvider';
 import { jpegMetaDataProvider } from './signalpet-metadata-fixes/metadata-providers/jpegMetaDataProvider';
+import { corruptedDicomFixedMetaDataProvider } from './signalpet-metadata-fixes/metadata-providers/CorruptedDicomFixedMetaDataProvider';
 
 export * from './components'; // ← path relative to the file you edit
 
