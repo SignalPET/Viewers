@@ -59,10 +59,12 @@ import utils from './utils';
 import { useMeasurementTracking } from './hooks/useMeasurementTracking';
 import { setUpSegmentationEventHandlers } from './utils/setUpSegmentationEventHandlers';
 
-// Newly added helper modules
-import { setJpegRenderedMetadata, getJpegRenderedMetadata } from './JpegRenderedMetadataStore';
-import buildModulesFromImage from './buildModulesFromImage';
+import { setJpegRenderedMetadata } from './signalpet-metadata-fixes/JpegRenderedMetadataStore';
+import buildModulesFromImage from './signalpet-metadata-fixes/buildModulesFromImage';
+
 import { RequestType } from '@cornerstonejs/core/enums';
+import { corruptedDicomFixedMetaDataProvider } from './signalpet-metadata-fixes/metadata-providers/CorruptedDicomFixedMetaDataProvider';
+import { jpegMetaDataProvider } from './signalpet-metadata-fixes/metadata-providers/jpegMetaDataProvider';
 
 export * from './components'; // ← path relative to the file you edit
 
@@ -263,14 +265,9 @@ const cornerstoneExtension: Types.Extensions.Extension = {
     // This is needed for progressive loading, as the metadata returned from the /metadata endpoint
     // is not the same as the metadata needed for rendered JPEGs, which causes decoding errors.
     // The metadata is extracted from the image frame in buildModulesFromImage.ts.
-    metaData.addProvider((type, imageId) => {
-      const modules = getJpegRenderedMetadata(imageId);
-      if (modules) {
-        return modules[type];
-      }
-
-      return;
-    }, 11000); // 11000 is the priority, we want a higher priority than the /metadata endpoint (10000), to override it.
+    // The second provider fixes metadata that is corrupted in the /metadata endpoint.
+    metaData.addProvider(jpegMetaDataProvider, 11000); // 11000 is the priority, we want a higher priority than the /metadata endpoint (10000), to override it.
+    metaData.addProvider(corruptedDicomFixedMetaDataProvider, 10000); // 10000 to override the priority of OHIF's default metadata provider
   },
   getToolbarModule: getToolbarModule as unknown as (p: Types.Extensions.ExtensionParams) => unknown,
   getHangingProtocolModule,
