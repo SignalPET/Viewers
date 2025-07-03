@@ -5,6 +5,7 @@ import {
 } from '@cornerstonejs/core/loaders';
 import dicomImageLoader from '@cornerstonejs/dicom-image-loader';
 import { errorHandler, utils } from '@ohif/core';
+import { registerRenderedWadorsImageLoader } from './imageLoaders/renderedWadorsImageLoader';
 
 const { registerVolumeLoader } = volumeLoader;
 
@@ -19,6 +20,9 @@ export default function initWADOImageLoader(
     'cornerstoneStreamingDynamicImageVolume',
     cornerstoneStreamingDynamicImageVolumeLoader
   );
+
+  // Register the rendered WADORS image loader
+  registerRenderedWadorsImageLoader();
 
   dicomImageLoader.init({
     maxWebWorkers: Math.min(

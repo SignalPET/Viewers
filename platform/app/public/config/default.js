@@ -14,7 +14,8 @@ const instanceFilter = (query, instance) => {
 /** @type {AppTypes.Config} */
 window.config = {
   name: 'config/default.js',
-  // whiteLabeling: {},
+  routerBasename: '/',
+  whiteLabeling: {},
   extensions: [],
   modes: [],
   customizationService: [
@@ -255,6 +256,48 @@ window.config = {
         instanceFilter,
       },
     },
+    // Example configuration for rendered WADORS endpoints
+    {
+      namespace: '@ohif/extension-default.dataSourcesModule.dicomweb',
+      sourceName: 'dicomweb-rendered',
+      configuration: {
+        friendlyName: 'DICOMWeb Server with Rendered Images',
+        name: 'RENDERED_DICOMWEB',
+        qidoRoot: 'https://server.dcmjs.org/dcm4chee-arc/aets/DCM4CHEE/rs',
+        wadoRoot: 'https://server.dcmjs.org/dcm4chee-arc/aets/DCM4CHEE/rs',
+        qidoSupportsIncludeField: true,
+        supportsReject: true,
+        // Use rendered image loader for improved performance
+        imageRendering: 'rendered',
+        thumbnailRendering: 'rendered',
+        // Configuration options for rendered images
+        renderedImageFormat: 'image/jpeg',
+        renderedImageQuality: 90,
+        renderedImageAcceptHeader: ['image/jpeg', 'image/png', 'image/gif'],
+        enableStudyLazyLoad: true,
+        supportsFuzzyMatching: true,
+        supportsWildcard: true,
+        staticWado: true,
+        singlepart: 'bulkdata,video,pdf',
+      },
+    },
+    {
+      namespace: '@ohif/extension-default.dataSourcesModule.dicomweb',
+      sourceName: 'ohif2',
+      configuration: {
+        friendlyName: 'AWS S3 Static wado secondary server',
+        name: 'aws',
+        wadoUriRoot: 'https://dd14fa38qiwhyfd.cloudfront.net/dicomweb',
+        qidoRoot: 'https://dd14fa38qiwhyfd.cloudfront.net/dicomweb',
+        wadoRoot: 'https://dd14fa38qiwhyfd.cloudfront.net/dicomweb',
+        qidoSupportsIncludeField: false,
+        supportsReject: false,
+        imageRendering: 'wadors',
+        thumbnailRendering: 'wadors',
+        enableStudyLazyLoad: true,
+        instanceFilter,
+      },
+    },
   ],
   httpErrorHandler: error => {
     // This is 429 when rejected from the public idc sandbox too often.
@@ -280,4 +323,5 @@ window.config = {
   //     );
   //   },
   // },
+  hotkeys: [],
 };

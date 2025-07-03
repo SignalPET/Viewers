@@ -36,7 +36,7 @@ export type DicomWebConfig = {
   wadoRoot?: string; // - Base URL to use for WADO requests
   wadoUri?: string; // - Base URL to use for WADO URI requests
   qidoSupportsIncludeField?: boolean; // - Whether QIDO supports the "Include" option to request additional fields in response
-  imageRendering?: string; // - wadors | ? (unsure of where/how this is used)
+  imageRendering?: string; // - wadors | wadouri | rendered
   thumbnailRendering?: string;
   /**
    wadors - render using the wadors fetch.  The full image is retrieved and rendered in cornerstone to thumbnail size  png and returned as binary data to the src attribute of the  image tag.
@@ -46,6 +46,12 @@ export type DicomWebConfig = {
    thumbnail - render using the thumbnail endpoint on wadors using bulkDataURI, passing authentication params  to the url.
     rendered - should use the rendered endpoint instead of the thumbnail endpoint
 */
+  /** Format for rendered images - image/jpeg, image/png, image/gif */
+  renderedImageFormat?: string;
+  /** Quality setting for rendered images (1-100) */
+  renderedImageQuality?: number;
+  /** Accept header values for rendered image requests */
+  renderedImageAcceptHeader?: string[];
   /** Whether the server supports reject calls (i.e. DCM4CHEE) */
   supportsReject?: boolean;
   /** indicates if the retrieves can fetch singlepart. Options are bulkdata, video, image, or  true */

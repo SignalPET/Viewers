@@ -1,4 +1,5 @@
 import getWADORSImageId from './getWADORSImageId';
+import getRenderedWADORSImageId from './getRenderedWADORSImageId';
 
 function buildInstanceWadoUrl(config, instance) {
   const { StudyInstanceUID, SeriesInstanceUID, SOPInstanceUID } = instance;
@@ -48,7 +49,11 @@ export default function getImageId({ instance, frame, config, thumbnail = false 
     }
 
     return imageId;
+  } else if (config[renderingAttr] === 'rendered') {
+    // Use the new rendered WADORS endpoint for pre-rendered images
+    return getRenderedWADORSImageId(instance, config, frame);
   } else {
+    // Default to regular WADORS for backward compatibility
     return getWADORSImageId(instance, config, frame); // WADO-RS Retrieve Frame
   }
 }
