@@ -294,6 +294,11 @@ const ErrorBoundary = ({
   const onErrorHandler = (error: ErrorBoundaryError, componentStack: string | null) => {
     console.debug(`${context} Error Boundary`, error, componentStack, context);
     onError(error, componentStack || '', context);
+    // @ts-expect-error - window.onErrorHandler is a custom property
+    if (window?.onErrorHandler) {
+      // @ts-expect-error - window.onErrorHandler is a custom property
+      window.onErrorHandler?.(error, componentStack || '', context);
+    }
   };
 
   return (
