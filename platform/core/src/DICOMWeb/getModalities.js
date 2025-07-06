@@ -1,5 +1,5 @@
 export default function getModalities(Modality, ModalitiesInStudy) {
-  if (!Modality && !ModalitiesInStudy) {
+  if (!Modality && (!ModalitiesInStudy || !ModalitiesInStudy.Value)) {
     return {};
   }
 
