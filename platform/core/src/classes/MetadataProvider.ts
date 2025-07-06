@@ -104,20 +104,7 @@ class MetadataProvider {
     }
 
     // Maybe its a legacy dicomImageLoader tag then:
-    const val = this._getCornerstoneDICOMImageLoaderTag(
-      naturalizedTagOrWADOImageLoaderTag,
-      instance
-    );
-    if (naturalizedTagOrWADOImageLoaderTag === 'imagePlaneModule') {
-      console.log(
-        'naturalizedTagOrWADOImageLoaderTag: ',
-        naturalizedTagOrWADOImageLoaderTag,
-        'value: ',
-        val
-      );
-    }
-
-    return val;
+    return this._getCornerstoneDICOMImageLoaderTag(naturalizedTagOrWADOImageLoaderTag, instance);
   }
 
   /**
