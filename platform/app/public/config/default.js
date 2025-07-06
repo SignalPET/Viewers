@@ -174,6 +174,12 @@ window.config = {
     // above, the number of requests can be go a lot higher.
     prefetch: 25,
   },
+  studyPrefetcher: {
+    enabled: true,
+    order: 'closest',
+    displaySetCount: 3,
+    maxNumPrefetchRequests: 100,
+  },
   // Defines multi-monitor layouts
   multimonitor: [
     {
@@ -243,12 +249,12 @@ window.config = {
       configuration: {
         friendlyName: 'SignalPET PACS',
         name: 'signalpet',
-        wadoUriRoot: 'http://localhost:32080/dcm4chee-arc/aets/DCM4CHEE/wado',
-        qidoRoot: 'http://localhost:32080/dcm4chee-arc/aets/DCM4CHEE/rs',
-        wadoRoot: 'http://localhost:32080/dcm4chee-arc/aets/DCM4CHEE/rs',
-        qidoSupportsIncludeField: false,
+        wadoUriRoot: 'http://localhost:6969/internal/pacs/wado',
+        qidoRoot: 'http://localhost:6969/internal/pacs/rs',
+        wadoRoot: 'http://localhost:6969/internal/pacs/rs',
         imageRendering: 'wadors',
-        thumbnailRendering: 'wadors',
+        thumbnailRendering: 'thumbnail',
+        acceptHeader: ['multipart/related; type=*/*; transfer-syntax=*'],
         dicomUploadEnabled: false,
         omitQuotationForMultipartRequest: true,
         enableStudyLazyLoad: true,
