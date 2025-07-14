@@ -15,6 +15,7 @@ import dcmjs from 'dcmjs';
 import { retrieveStudyMetadata, deleteStudyMetadataPromise } from './retrieveStudyMetadata.js';
 import StaticWadoClient from './utils/StaticWadoClient';
 import getDirectURL from '../utils/getDirectURL';
+import { splitDicomDateTime, Dcm4cheePrivateTags, fillInstanceDateTimeFallback } from '../utils/signalpetUtils';
 import { fixBulkDataURI } from './utils/fixBulkDataURI';
 
 const { DicomMetaDictionary, DicomDict } = dcmjs.data;
@@ -437,6 +438,8 @@ function createDicomWebApi(dicomWebConfig: DicomWebConfig, servicesManager) {
           return;
         }
 
+        fillInstanceDateTimeFallback(instance);
+
         if (!seriesSummaryMetadata[instance.SeriesInstanceUID]) {
           seriesSummaryMetadata[instance.SeriesInstanceUID] = {
             StudyInstanceUID: instance.StudyInstanceUID,
@@ -568,6 +571,8 @@ function createDicomWebApi(dicomWebConfig: DicomWebConfig, servicesManager) {
           instance.wadoRoot = dicomWebConfig.wadoRoot;
           instance.wadoUri = dicomWebConfig.wadoUri;
 
+          fillInstanceDateTimeFallback(instance);
+
           const { StudyInstanceUID, SeriesInstanceUID, SOPInstanceUID } = instance;
           const numberOfFrames = instance.NumberOfFrames || 1;
           // Process all frames consistently, whether single or multiframe
@@ -609,6 +614,12 @@ function createDicomWebApi(dicomWebConfig: DicomWebConfig, servicesManager) {
       // Google Cloud Healthcare doesn't return StudyInstanceUID, so we need to add
       // it manually here
       seriesSummaryMetadata.forEach(aSeries => {
+        const seriesDateTime = aSeries[Dcm4cheePrivateTags.SeriesReceiveDateTime];
+        if (seriesDateTime != null) {
+          const [ seriesDate, seriesTime ] = splitDicomDateTime(seriesDateTime);
+          aSeries.SeriesDate ??= seriesDate;
+          aSeries.SeriesTime ??= seriesTime;
+        }
         aSeries.StudyInstanceUID = StudyInstanceUID;
       });
 
