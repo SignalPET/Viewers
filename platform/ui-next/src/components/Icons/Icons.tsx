@@ -227,6 +227,9 @@ import ArrowRight from './Sources/ArrowRight';
 import ChevronLeft from './Sources/ChevronLeft';
 import StatusAlert from './Sources/StatusAlert';
 import Undo from './Sources/Undo';
+import SPDownload from './Sources/SPDownload';
+import SPShare from './Sources/SPShare';
+
 //
 //
 type IconProps = React.HTMLAttributes<SVGElement>;
@@ -517,6 +520,8 @@ export const Icons = {
   SortingAscending,
   SortingDescending,
   Sorting,
+  SPDownload,
+  SPShare,
   StatusError,
   StatusSuccess,
   StatusTracking,
