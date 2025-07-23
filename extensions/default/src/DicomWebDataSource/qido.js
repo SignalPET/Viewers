@@ -24,6 +24,7 @@
  */
 import { DICOMWeb, utils } from '@ohif/core';
 import { sortStudySeries } from '@ohif/core/src/utils/sortStudy';
+import { splitDicomDateTime, Dcm4cheePrivateTags } from '../utils/signalpetUtils';
 
 const { getString, getName, getModalities } = DICOMWeb;
 
@@ -44,19 +45,31 @@ function processResults(qidoStudies) {
 
   const studies = [];
 
-  qidoStudies.forEach(qidoStudy =>
+
+  qidoStudies.forEach(qidoStudy => {
+    let date = getString(qidoStudy['00080020']); // YYYYMMDD
+    let time = getString(qidoStudy['00080030']); // HHmmss.SSS (24-hour, minutes, seconds, fractional seconds)
+
+    // Fall back to archive receive date
+    const archiveDateTime = getString(qidoStudy[Dcm4cheePrivateTags.StudyReceiveDateTime]);
+    if (archiveDateTime) {
+      const [ archiveDate, archiveTime ] = splitDicomDateTime(archiveDateTime);
+      date ??= archiveDate;
+      time ??= archiveTime;
+    }
+
     studies.push({
       studyInstanceUid: getString(qidoStudy['0020000D']),
-      date: getString(qidoStudy['00080020']), // YYYYMMDD
-      time: getString(qidoStudy['00080030']), // HHmmss.SSS (24-hour, minutes, seconds, fractional seconds)
+      date: date,
+      time: time,
       accession: getString(qidoStudy['00080050']) || '', // short string, probably a number?
       mrn: getString(qidoStudy['00100020']) || '', // medicalRecordNumber
       patientName: utils.formatPN(getName(qidoStudy['00100010'])) || '',
       instances: Number(getString(qidoStudy['00201208'])) || 0, // number
       description: getString(qidoStudy['00081030']) || '',
       modalities: getString(getModalities(qidoStudy['00080060'], qidoStudy['00080061'])) || '',
-    })
-  );
+    });
+  });
 
   return studies;
 }
@@ -119,7 +132,7 @@ async function search(dicomWebClient, studyInstanceUid, seriesInstanceUid, query
 export function seriesInStudy(dicomWebClient, studyInstanceUID) {
   // Series Description
   // Already included?
-  const commaSeparatedFields = ['0008103E', '00080021'].join(',');
+  const commaSeparatedFields = ['0008103E', '00080021', Dcm4cheePrivateTags.SeriesReceiveDateTime].join(',');
   const queryParams = {
     includefield: commaSeparatedFields,
   };
@@ -151,6 +164,7 @@ function mapParams(params, options = {}) {
   const commaSeparatedFields = [
     '00081030', // Study Description
     '00080060', // Modality
+    Dcm4cheePrivateTags.StudyReceiveDateTime,
     // Add more fields here if you want them in the result
   ].join(',');
 

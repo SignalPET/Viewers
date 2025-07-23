@@ -5,6 +5,7 @@ import {
   Enums as cs3DEnums,
   imageLoadPoolManager,
   imageRetrievalPoolManager,
+  metaData,
 } from '@cornerstonejs/core';
 import { Enums as cs3DToolsEnums } from '@cornerstonejs/tools';
 import { Types } from '@ohif/core';
@@ -57,7 +58,15 @@ import CornerstoneViewportDownloadForm from './utils/CornerstoneViewportDownload
 import utils from './utils';
 import { useMeasurementTracking } from './hooks/useMeasurementTracking';
 import { setUpSegmentationEventHandlers } from './utils/setUpSegmentationEventHandlers';
-export * from './components';
+
+import { setJpegRenderedMetadata } from './signalpet-metadata-fixes/JpegRenderedMetadataStore';
+import buildModulesFromImage from './signalpet-metadata-fixes/buildModulesFromImage';
+
+import { RequestType } from '@cornerstonejs/core/enums';
+import { jpegMetaDataProvider } from './signalpet-metadata-fixes/metadata-providers/jpegMetaDataProvider';
+import { corruptedDicomFixedMetaDataProvider } from './signalpet-metadata-fixes/metadata-providers/CorruptedDicomFixedMetaDataProvider';
+
+export * from './components'; // ← path relative to the file you edit
 
 const { imageRetrieveMetadataProvider } = cornerstone.utilities;
 
@@ -71,15 +80,6 @@ const OHIFCornerstoneViewport = props => {
       <Component {...props} />
     </React.Suspense>
   );
-};
-
-const stackRetrieveOptions = {
-  retrieveOptions: {
-    single: {
-      streaming: true,
-      decodeLevel: 1,
-    },
-  },
 };
 
 const unsubscriptions = [];
@@ -125,12 +125,86 @@ const cornerstoneExtension: Types.Extensions.Extension = {
       'volume',
       cornerstone.ProgressiveRetrieveImages.interleavedRetrieveStages
     );
-    // The default stack loading option is to progressive load HTJ2K images
-    // There are other possible options, but these need more thought about
-    // how to define them.
+
+    // This is our progressive loading configuration. it loads a rendered version of the images,
+    // metadata is extracted from the image frame and stored in the jpegRenderedMetadataStore.
+    // This metadata is then used to correctly decode the image for each quality level.
+    const stackRetrieveOptions = {
+      stages: [
+        {
+          id: 'q1',
+          retrieveType: 'q1',
+          priority: 1,
+          requestType: RequestType.Prefetch,
+          quality: 1,
+        },
+        {
+          id: 'q10',
+          retrieveType: 'q10',
+          priority: 2,
+          requestType: RequestType.Prefetch,
+          quality: 10,
+        },
+        {
+          id: 'q30',
+          retrieveType: 'q30',
+          priority: 3,
+          requestType: RequestType.Prefetch,
+          quality: 30,
+        },
+        {
+          id: 'q60',
+          retrieveType: 'q60',
+          priority: 4,
+          requestType: RequestType.Prefetch,
+          quality: 60,
+        },
+        {
+          id: 'full',
+          retrieveType: 'full',
+          priority: 5,
+          requestType: RequestType.Interaction,
+          quality: 100,
+        },
+      ],
+      retrieveOptions: {
+        q1: {
+          framesPath: '/frames-rendered/',
+          urlArguments: 'quality=1',
+          imageQualityStatus: cs3DEnums.ImageQualityStatus.LOSSY,
+          streaming: false,
+        },
+        q10: {
+          framesPath: '/frames-rendered/',
+          urlArguments: 'quality=10',
+          imageQualityStatus: cs3DEnums.ImageQualityStatus.LOSSY,
+          streaming: false,
+        },
+        q30: {
+          framesPath: '/frames-rendered/',
+          urlArguments: 'quality=30',
+          imageQualityStatus: cs3DEnums.ImageQualityStatus.LOSSY,
+          streaming: false,
+        },
+        q60: {
+          framesPath: '/frames-rendered/',
+          urlArguments: 'quality=60',
+          imageQualityStatus: cs3DEnums.ImageQualityStatus.LOSSY,
+          streaming: false,
+        },
+        full: {
+          imageQualityStatus: cs3DEnums.ImageQualityStatus.FULL_RESOLUTION,
+          framesPath: '/frames-rendered/',
+          urlArguments: 'quality=100',
+          streaming: false,
+          decodeLevel: 0,
+        },
+      },
+    };
+
     imageRetrieveMetadataProvider.add('stack', stackRetrieveOptions);
   },
-  getPanelModule,
+  getPanelModule: getPanelModule as unknown as (p: Types.Extensions.ExtensionParams) => unknown,
   onModeExit: ({ servicesManager }: withAppTypes): void => {
     unsubscriptions.forEach(unsubscribe => unsubscribe());
     // Clear the unsubscriptions
@@ -174,8 +248,28 @@ const cornerstoneExtension: Types.Extensions.Extension = {
     syncGroupService.registerCustomSynchronizer('frameview', createFrameViewSynchronizer);
 
     await init.call(this, props);
+
+    // Listen for decoded images that are added to the cache so we can
+    // generate metadata for rendered JPEGs.
+    cornerstone.eventTarget.addEventListener(
+      cornerstone.Enums.Events.IMAGE_CACHE_IMAGE_ADDED,
+      ({ detail }) => {
+        const { image } = detail;
+        const { imageId } = image;
+        const modules = buildModulesFromImage(imageId, image.image);
+        setJpegRenderedMetadata(imageId, modules);
+      }
+    );
+
+    // Register metadata provider to serve stubbed modules for rendered JPEGs
+    // This is needed for progressive loading, as the metadata returned from the /metadata endpoint
+    // is not the same as the metadata needed for rendered JPEGs, which causes decoding errors.
+    // The metadata is extracted from the image frame in buildModulesFromImage.ts.
+    // The second provider fixes metadata that is corrupted in the /metadata endpoint.
+    metaData.addProvider(jpegMetaDataProvider, 11000); // 11000 is the priority, we want a higher priority than the /metadata endpoint (10000), to override it.
+    metaData.addProvider(corruptedDicomFixedMetaDataProvider, 10000); // 10000 to override the priority of OHIF's default metadata provider
   },
-  getToolbarModule,
+  getToolbarModule: getToolbarModule as unknown as (p: Types.Extensions.ExtensionParams) => unknown,
   getHangingProtocolModule,
   getViewportModule({ servicesManager, commandsManager }) {
     const ExtendedOHIFCornerstoneViewport = props => {
