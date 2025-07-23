@@ -1,7 +1,6 @@
 import { useState, useCallback, useLayoutEffect, useRef } from 'react';
 import { getPanelElement, getPanelGroupElement } from 'react-resizable-panels';
-import { panelGroupDefinition } from './constants/panels';
-import { useAppConfig } from '@state';
+import { getPanelGroupDefinition } from './constants/panels';
 import { useSystem } from '@ohif/core';
 
 /**
@@ -32,10 +31,23 @@ const useResizablePanels = (
   rightPanelClosed,
   setRightPanelClosed,
   hasLeftPanels,
-  hasRightPanels
+  hasRightPanels,
+  leftPanelInitialExpandedWidth,
+  rightPanelInitialExpandedWidth,
+  leftPanelMinimumExpandedWidth,
+  rightPanelMinimumExpandedWidth
 ) => {
   const { servicesManager } = useSystem();
   const customizationService = servicesManager?.services?.customizationService;
+
+  const [panelGroupDefinition] = useState(
+    getPanelGroupDefinition({
+      leftPanelInitialExpandedWidth,
+      rightPanelInitialExpandedWidth,
+      leftPanelMinimumExpandedWidth,
+      rightPanelMinimumExpandedWidth,
+    })
+  );
 
   let leftPanelWidth = panelGroupDefinition.left.initialExpandedWidth;
 
