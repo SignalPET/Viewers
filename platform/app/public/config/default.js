@@ -1,14 +1,16 @@
 /* filters displayed DICOM instances by their SignalPET study ID */
+/** This isn't necessary in this repo, it's kept here so devs don't have to copy it from the default.js file in the SignalPET repo */
 const instanceFilter = (query, instance) => {
   // 31C51020 is a private SiganlPET tag that stores the StudyID
-  const instanceStudyId = instance['31C51020']?.Value?.[0];
-  const queryStudyId = parseInt(query.get('SignalPETStudyID'));
+  const instanceStudyId = instance["31C51020"]?.Value?.[0];
+  const queryStudyId = parseInt(query.get("SignalPETStudyID"));
+  const historicalStudyIds = query.get("RelatedSignalPETStudyIDs")?.split(",")?.map(id => parseInt(id)) ?? [];
 
   if (isNaN(queryStudyId)) {
     return true;
   }
 
-  return instanceStudyId == queryStudyId;
+  return instanceStudyId == queryStudyId || historicalStudyIds.includes(instanceStudyId);
 };
 
 /** @type {AppTypes.Config} */
@@ -140,7 +142,7 @@ window.config = {
       'ohif.aboutModal': {
         hidden: true,
       },
-      'ui.studyBrowserHeader': () => null,
+      'ui.studyBrowserHeader': null,
       'panel.left.initialWidth': 89,
       'studyBrowser.thumbnailMenuItems': [
         {
@@ -176,9 +178,9 @@ window.config = {
   },
   studyPrefetcher: {
     enabled: true,
-    order: 'closest',
-    displaySetCount: 3,
-    maxNumPrefetchRequests: 100,
+    order: 'downward',
+    displaySetCount: 2,
+    maxNumPrefetchRequests: 5,
   },
   // Defines multi-monitor layouts
   multimonitor: [

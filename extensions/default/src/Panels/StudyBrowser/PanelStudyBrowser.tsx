@@ -440,21 +440,26 @@ function PanelStudyBrowser({
   const customStudyBrowser = (customizationService.getCustomization('ui.studyBrowser') ||
     StudyBrowser) as React.ComponentType<unknown>;
 
+  const CustomStudyBrowserHeader = (customizationService.getCustomization('ui.studyBrowserHeader') || PanelStudyBrowserHeader) as React.ComponentType<unknown>;
+
   return (
     <>
-      <>
-        <PanelStudyBrowserHeader
-          viewPresets={viewPresets}
-          updateViewPresetValue={updateViewPresetValue}
-          actionIcons={actionIcons}
-          updateActionIconValue={updateActionIconValue}
-        />
-        <Separator
-          orientation="horizontal"
-          className="bg-black"
-          thickness="2px"
-        />
-      </>
+      {CustomStudyBrowserHeader && (
+        <>
+          <CustomStudyBrowserHeader
+            // @ts-expect-error custom type
+            viewPresets={viewPresets}
+            updateViewPresetValue={updateViewPresetValue}
+            actionIcons={actionIcons}
+            updateActionIconValue={updateActionIconValue}
+          />
+          <Separator
+            orientation="horizontal"
+            className="bg-input"
+            thickness="2px"
+          />
+        </>
+      )}
 
       {React.createElement(customStudyBrowser, {
         // @ts-expect-error custom type
