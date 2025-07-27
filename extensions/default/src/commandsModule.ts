@@ -237,6 +237,7 @@ const commandsModule = ({
 
       const study = DicomMetadataStore.getStudy(StudyInstanceUID);
       hangingProtocolService.addStudy(study);
+      customizationService.setCustomization('signalpet.alreadySelectedFirstImage', undefined);
     },
 
     /**
