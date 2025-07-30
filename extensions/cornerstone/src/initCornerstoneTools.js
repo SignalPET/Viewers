@@ -41,6 +41,7 @@ import {
   SegmentSelectTool,
   RegionSegmentPlusTool,
   SegmentLabelTool,
+  LabelTool,
 } from '@cornerstonejs/tools';
 import { LabelmapSlicePropagationTool, MarkerLabelmapTool } from '@cornerstonejs/ai';
 import * as polySeg from '@cornerstonejs/polymorphic-segmentation';
@@ -106,6 +107,7 @@ export default function initCornerstoneTools(configuration = {}) {
   addTool(PlanarFreehandContourSegmentationTool);
   addTool(SegmentSelectTool);
   addTool(SegmentLabelTool);
+  addTool(LabelTool);
   addTool(LabelmapSlicePropagationTool);
   addTool(MarkerLabelmapTool);
   addTool(RegionSegmentPlusTool);
@@ -157,6 +159,7 @@ const toolNames = {
   UltrasoundDirectional: UltrasoundDirectionalTool.toolName,
   UltrasoundAnnotation: UltrasoundPleuraBLineTool.toolName,
   SplineROI: SplineROITool.toolName,
+  Label: LabelTool.toolName,
   LivewireContour: LivewireContourTool.toolName,
   PlanarFreehandROI: PlanarFreehandROITool.toolName,
   OrientationMarker: OrientationMarkerTool.toolName,

@@ -40,6 +40,7 @@ function initDefaultToolGroup(extensionManager, toolGroupService, commandsManage
     ],
     passive: [
       { toolName: toolNames.Length },
+      { toolName: toolNames.Label },
       {
         toolName: toolNames.ArrowAnnotate,
         configuration: {
