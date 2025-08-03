@@ -195,6 +195,11 @@ module.exports = (env, argv, { SRC_DIR, ENTRY }) => {
     resolve: {
       mainFields: ['module', 'browser', 'main'],
       alias: {
+        // SignalPET local extension
+        '@signalpet/extension-signalpet-measurements': path.resolve(
+          __dirname,
+          '../extensions/signalpet-measurements/src/index.tsx'
+        ),
         // Viewer project
         '@': path.resolve(__dirname, '../platform/app/src'),
         '@components': path.resolve(__dirname, '../platform/app/src/components'),

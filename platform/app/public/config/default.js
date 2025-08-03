@@ -2,9 +2,13 @@
 /** This isn't necessary in this repo, it's kept here so devs don't have to copy it from the default.js file in the SignalPET repo */
 const instanceFilter = (query, instance) => {
   // 31C51020 is a private SiganlPET tag that stores the StudyID
-  const instanceStudyId = instance["31C51020"]?.Value?.[0];
-  const queryStudyId = parseInt(query.get("SignalPETStudyID"));
-  const historicalStudyIds = query.get("RelatedSignalPETStudyIDs")?.split(",")?.map(id => parseInt(id)) ?? [];
+  const instanceStudyId = instance['31C51020']?.Value?.[0];
+  const queryStudyId = parseInt(query.get('SignalPETStudyID'));
+  const historicalStudyIds =
+    query
+      .get('RelatedSignalPETStudyIDs')
+      ?.split(',')
+      ?.map(id => parseInt(id)) ?? [];
 
   if (isNaN(queryStudyId)) {
     return true;
@@ -17,7 +21,7 @@ const instanceFilter = (query, instance) => {
 window.config = {
   name: 'config/default.js',
   // whiteLabeling: {},
-  extensions: [],
+  extensions: ['@signalpet/extension-signalpet-measurements'],
   modes: [],
   customizationService: [
     {
@@ -264,6 +268,87 @@ window.config = {
       },
     },
   ],
+  modesConfiguration: {
+    '@ohif/mode-longitudinal': {
+      // TODO DAN REVIEW: This is a lot, let's consider doing it programmatically on extension load, so we touch less stuff
+      routes: [
+        {
+          path: 'longitudinal',
+          layoutTemplate: params => {
+            // Static recreation of default longitudinal layout for future compatibility
+            // Based on ohif-source/modes/longitudinal/src/index.ts
+            const defaultLayout = {
+              id: '@ohif/extension-default.layoutTemplateModule.viewerLayout',
+              props: {
+                leftPanels: ['@ohif/extension-measurement-tracking.panelModule.seriesList'],
+                leftPanelResizable: true,
+                rightPanels: [
+                  '@ohif/extension-cornerstone.panelModule.panelSegmentation',
+                  '@ohif/extension-measurement-tracking.panelModule.trackedMeasurements',
+                ],
+                rightPanelClosed: true,
+                rightPanelResizable: true,
+                viewports: [
+                  {
+                    namespace:
+                      '@ohif/extension-measurement-tracking.viewportModule.cornerstone-tracked',
+                    displaySetsToDisplay: [
+                      '@ohif/extension-default.sopClassHandlerModule.stack',
+                      '@ohif/extension-dicom-video.sopClassHandlerModule.dicom-video',
+                      '@ohif/extension-cornerstone-dicom-sr.sopClassHandlerModule.dicom-sr-3d',
+                      '@ohif/extension-default.sopClassHandlerModule.DicomMicroscopySopClassHandler',
+                    ],
+                  },
+                  {
+                    namespace: '@ohif/extension-cornerstone-dicom-sr.viewportModule.dicom-sr',
+                    displaySetsToDisplay: [
+                      '@ohif/extension-cornerstone-dicom-sr.sopClassHandlerModule.dicom-sr',
+                    ],
+                  },
+                  {
+                    namespace: '@ohif/extension-dicom-pdf.viewportModule.dicom-pdf',
+                    displaySetsToDisplay: [
+                      '@ohif/extension-dicom-pdf.sopClassHandlerModule.dicom-pdf',
+                    ],
+                  },
+                  {
+                    namespace: '@ohif/extension-cornerstone-dicom-seg.viewportModule.dicom-seg',
+                    displaySetsToDisplay: [
+                      '@ohif/extension-cornerstone-dicom-seg.sopClassHandlerModule.dicom-seg',
+                    ],
+                  },
+                  {
+                    namespace: '@ohif/extension-cornerstone-dicom-pmap.viewportModule.dicom-pmap',
+                    displaySetsToDisplay: [
+                      '@ohif/extension-cornerstone-dicom-pmap.sopClassHandlerModule.dicom-pmap',
+                    ],
+                  },
+                  {
+                    namespace: '@ohif/extension-cornerstone-dicom-rt.viewportModule.dicom-rt',
+                    displaySetsToDisplay: [
+                      '@ohif/extension-cornerstone-dicom-rt.sopClassHandlerModule.dicom-rt',
+                    ],
+                  },
+                ],
+              },
+            };
+
+            // Add our custom panel to the existing right panels and open the panel
+            return {
+              ...defaultLayout,
+              props: {
+                ...defaultLayout.props,
+                rightPanels: [
+                  '@signalpet/extension-signalpet-measurements.panelModule.trackedMeasurements',
+                ],
+                rightPanelClosed: false,
+              },
+            };
+          },
+        },
+      ],
+    },
+  },
   httpErrorHandler: error => {
     // This is 429 when rejected from the public idc sandbox too often.
     console.warn(error.status);
