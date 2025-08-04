@@ -216,20 +216,31 @@ const SignalPETMeasurementsPanel: React.FC<SignalPETMeasurementsPanelProps> = ({
       console.log('[SignalPET Measurements Panel] Applied SR:', sr);
     } catch (error) {
       console.error('[SignalPET Measurements Panel] Failed to apply SR version:', error);
-      alert(
-        'Failed to load measurements: ' + (error instanceof Error ? error.message : 'Unknown error')
-      );
+      const { uiNotificationService } = servicesManager.services;
+      uiNotificationService.show({
+        title: 'Load Failed',
+        message:
+          'Failed to load measurements: ' +
+          (error instanceof Error ? error.message : 'Unknown error'),
+        type: 'error',
+        duration: 5000,
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const handleSaveMeasurements = async (name: string) => {
-    const { measurementService } = servicesManager.services;
+    const { measurementService, uiNotificationService } = servicesManager.services;
     const currentMeasurements = measurementService.getMeasurements();
 
     if (!currentMeasurements || currentMeasurements.length === 0) {
-      alert('No measurements to save. Please create some measurements first.');
+      uiNotificationService.show({
+        title: 'No Measurements',
+        message: 'No measurements to save. Please create some measurements first.',
+        type: 'warning',
+        duration: 4000,
+      });
       return;
     }
 
@@ -248,11 +259,21 @@ const SignalPETMeasurementsPanel: React.FC<SignalPETMeasurementsPanelProps> = ({
       }
 
       // Show success message
-      alert(`Successfully saved ${currentMeasurements.length} measurements as SR!`);
+      uiNotificationService.show({
+        title: 'SR Saved Successfully',
+        message: `Successfully saved ${currentMeasurements.length} measurements as "${name}"`,
+        type: 'success',
+        duration: 4000,
+      });
     } catch (error) {
       console.error('[SignalPET Measurements Panel] Failed to save SR:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      alert(`Failed to save measurements as SR: ${errorMessage}`);
+      uiNotificationService.show({
+        title: 'Save Failed',
+        message: `Failed to save measurements as SR: ${errorMessage}`,
+        type: 'error',
+        duration: 5000,
+      });
     } finally {
       setLoading(false);
     }

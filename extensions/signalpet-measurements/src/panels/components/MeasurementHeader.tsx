@@ -87,7 +87,7 @@ const MeasurementHeader: React.FC<MeasurementHeaderProps> = ({
       <div className="border-primary-main/20 flex items-center justify-between border-b px-4 py-3">
         <h3 className="text-primary-light text-sm font-medium">Measurement</h3>
         <button
-          className="bg-primary-main/90 hover:bg-primary-main border-primary-main hover:border-primary-light flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex items-center justify-center rounded-md border border-[#097293] bg-[#097293] px-4 py-2 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:border-[#0a7fa6] hover:bg-[#0a7fa6] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
           onClick={handleSaveSRClick}
           disabled={loading}
           title="Save measurements as SR"
