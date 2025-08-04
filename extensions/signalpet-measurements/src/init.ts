@@ -223,3 +223,78 @@ export default async function init({
   isInitialized = true;
   console.log('[SignalPET Measurements] Extension initialized successfully');
 }
+
+/**
+ * Adds SignalPET measurements panel to longitudinal mode and removes default measurement tracking panel
+ */
+export function addPanelToLongitudinalMode(servicesManager: AppTypes.ServicesManager) {
+  const { panelService } = servicesManager.services;
+
+  // Check if we're in the longitudinal mode route
+  const currentPath = window.location.pathname;
+  const isLongitudinalMode =
+    currentPath.includes('/viewer') || currentPath.includes('/longitudinal');
+
+  if (!isLongitudinalMode) {
+    console.log('[SignalPET Measurements] Not in longitudinal mode, skipping panel modification');
+    return;
+  }
+
+  try {
+    console.log('[SignalPET Measurements] Modifying panels for longitudinal mode...');
+
+    // Get current panels from all positions
+    const currentLeftPanels = panelService.getPanels(panelService.PanelPosition.Left);
+    const currentRightPanels = panelService.getPanels(panelService.PanelPosition.Right);
+
+    console.log(
+      '[SignalPET Measurements] Current left panels:',
+      currentLeftPanels.map(p => p.id)
+    );
+    console.log(
+      '[SignalPET Measurements] Current right panels:',
+      currentRightPanels.map(p => p.id)
+    );
+
+    // Define the desired panel configuration
+    const leftPanelIds = currentLeftPanels.map(p => p.id); // Keep existing left panels
+
+    // For right panels: keep segmentation panel but replace measurement tracking with ours
+    const rightPanelIds = currentRightPanels
+      .filter(
+        panel =>
+          // Keep segmentation panel, exclude measurement tracking panel
+          panel.id === '@ohif/extension-cornerstone.panelModule.panelSegmentation'
+      )
+      .map(p => p.id);
+
+    // Add our SignalPET measurements panel
+    rightPanelIds.push(
+      '@signalpet/extension-signalpet-measurements.panelModule.trackedMeasurements'
+    );
+
+    console.log('[SignalPET Measurements] Setting new panel configuration:');
+    console.log('- Left panels:', leftPanelIds);
+    console.log('- Right panels:', rightPanelIds);
+
+    // Get current bottom panels to preserve them
+    const currentBottomPanels = panelService.getPanels(panelService.PanelPosition.Bottom);
+    const bottomPanelIds = currentBottomPanels.map(p => p.id);
+
+    // Set the new panel configuration
+    panelService.setPanels(
+      {
+        left: leftPanelIds,
+        right: rightPanelIds,
+        bottom: bottomPanelIds,
+      },
+      { rightPanelClosed: false }
+    );
+
+    console.log(
+      '[SignalPET Measurements] Successfully modified panels - removed measurement tracking panel and added SignalPET measurements panel'
+    );
+  } catch (error) {
+    console.error('[SignalPET Measurements] Error modifying panels:', error);
+  }
+}

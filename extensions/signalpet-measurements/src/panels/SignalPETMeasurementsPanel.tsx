@@ -224,7 +224,7 @@ const SignalPETMeasurementsPanel: React.FC<SignalPETMeasurementsPanelProps> = ({
     }
   };
 
-  const handleSaveMeasurements = async () => {
+  const handleSaveMeasurements = async (name: string) => {
     const { measurementService } = servicesManager.services;
     const currentMeasurements = measurementService.getMeasurements();
 
@@ -235,13 +235,9 @@ const SignalPETMeasurementsPanel: React.FC<SignalPETMeasurementsPanelProps> = ({
 
     setLoading(true);
     try {
-      // Generate a description with timestamp and measurement count
-      const timestamp = new Date().toLocaleString();
-      const description = `SignalPET SR - ${currentMeasurements.length} measurements (${timestamp})`;
-
-      // Use the proper SignalPET save command
+      // Use the proper SignalPET save command with user-provided name
       const savedSR = await commandsManager.runCommand('signalpetSaveSR', {
-        description: description,
+        description: name,
       });
 
       console.log('[SignalPET Measurements Panel] SR saved successfully:', savedSR);
