@@ -1,2 +1,5 @@
 // Export types for external consumption
-export { SRVersion, SRManagementAPI } from '../services/SRManagementService';
+export type { SRVersion, SRManagementAPI } from './sr.types';
+
+// Export measurement types
+export type * from './measurement.types';

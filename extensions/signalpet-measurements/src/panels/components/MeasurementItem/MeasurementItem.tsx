@@ -1,0 +1,92 @@
+import React from 'react';
+import MeasurementNameEditor from './MeasurementNameEditor';
+import MeasurementActions from './MeasurementActions';
+import MeasurementValues from './MeasurementValues';
+import type { Measurement } from '../../../types';
+
+const MeasurementItem = ({
+  measurement,
+  index,
+  onAction,
+  editingMeasurement,
+  setEditingMeasurement,
+}: MeasurementItemProps) => {
+  const isEditing = editingMeasurement === measurement.uid;
+  const defaultName = `Measurement ${index + 1}`;
+
+  const handleClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (!target.closest('button') && !target.closest('input')) {
+      onAction('jumpToMeasurement', measurement.uid);
+    }
+  };
+
+  const handleSaveName = (value: string) => {
+    onAction('updateMeasurementLabel', measurement.uid, value);
+    setEditingMeasurement(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMeasurement(null);
+  };
+
+  const handleStartEdit = () => {
+    setEditingMeasurement(measurement.uid);
+  };
+
+  const handleToggleVisibility = () => {
+    onAction('toggleVisibilityMeasurement', measurement.uid);
+  };
+
+  const handleDelete = () => {
+    onAction('removeMeasurement', measurement.uid);
+  };
+
+  return (
+    <div className="w-full rounded">
+      <div
+        className="flex w-full cursor-pointer flex-col rounded transition-colors hover:bg-[#0c3b46]/40"
+        onClick={handleClick}
+      >
+        <div className="flex w-full items-center">
+          <div className="flex h-9 w-8 items-center justify-center rounded-tl border border-[#0c3b46] bg-[#092c34]">
+            <span className="text-xs text-[#bfcbce]">{index + 1}</span>
+          </div>
+
+          <div className="flex h-9 flex-1 items-center justify-between rounded-tr border border-l-0 border-[#0c3b46] bg-[#092c34] px-2">
+            <MeasurementNameEditor
+              isEditing={isEditing}
+              label={measurement.label}
+              defaultName={defaultName}
+              onSave={handleSaveName}
+              onCancel={handleCancelEdit}
+              onStartEdit={handleStartEdit}
+            />
+
+            <MeasurementActions
+              isVisible={measurement.isVisible !== false}
+              onToggleVisibility={handleToggleVisibility}
+              onDelete={handleDelete}
+            />
+          </div>
+        </div>
+
+        <MeasurementValues
+          toolName={measurement.toolName}
+          primaryValue={measurement.primaryValue}
+          secondaryValue={measurement.secondaryValue}
+        />
+      </div>
+    </div>
+  );
+};
+
+type MeasurementItemProps = {
+  measurement: Measurement;
+  index: number;
+  onAction: (command: string, uid: string, value?: string) => void;
+  editingMeasurement: string | null;
+  setEditingMeasurement: (uid: string | null) => void;
+};
+
+export default MeasurementItem;

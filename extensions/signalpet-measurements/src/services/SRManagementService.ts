@@ -1,45 +1,9 @@
-import { Types } from '@ohif/core';
+import { SRManagementAPI, SRVersion } from '../types';
 
 // SR SOP Class Handler IDs
 const SR_SOPCLASSHANDLERID = '@ohif/extension-cornerstone-dicom-sr.sopClassHandlerModule.dicom-sr';
 const SR_SOPCLASSHANDLERID_3D =
   '@ohif/extension-cornerstone-dicom-sr.sopClassHandlerModule.dicom-sr-3d';
-
-export interface SRVersion {
-  displaySetInstanceUID: string;
-  SeriesInstanceUID: string;
-  SOPInstanceUID: string;
-  SeriesDate?: string;
-  SeriesTime?: string;
-  SeriesNumber?: number;
-  SeriesDescription?: string;
-  isLoaded: boolean;
-  isHydrated: boolean;
-  isRehydratable: boolean;
-  measurements?: any[];
-  StudyInstanceUID: string;
-}
-
-export interface SRManagementAPI {
-  // Requirement 1: Read and load latest SR
-  loadLatestSR(): Promise<SRVersion | null>;
-
-  // Requirement 2: Get all SR versions
-  getAllSRVersions(): Promise<SRVersion[]>;
-
-  // Get SR versions for a specific image/series
-  getSRVersionsForImage(imageDisplaySetInstanceUID: string): Promise<SRVersion[]>;
-
-  // Requirement 3: Save SR
-  saveSR(description?: string): Promise<SRVersion>;
-
-  // Requirement 4: Apply specific SR
-  applySR(displaySetInstanceUID: string): Promise<SRVersion>;
-
-  // Utility methods
-  getCurrentMeasurements(): any[];
-  clearCurrentMeasurements(): void;
-}
 
 export class SRManagementService implements SRManagementAPI {
   private servicesManager: any;
@@ -139,8 +103,8 @@ export class SRManagementService implements SRManagementAPI {
         try {
           await srDisplaySet.load();
         } catch (error) {
-          console.warn(
-            '[SRManagement] Failed to load SR metadata:', // TODO DAN REVIEW: Add error logs so they will be indexed to DataDog, we want to monitor this, add it to OHIF dashbaord
+          console.error(
+            '[SRManagement] Failed to load SR metadata:',
             sr.displaySetInstanceUID,
             error
           );

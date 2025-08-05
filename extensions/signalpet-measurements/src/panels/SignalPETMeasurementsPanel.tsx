@@ -5,13 +5,13 @@ import { ScrollArea } from '@ohif/ui-next';
 import { MeasurementHeader, MeasurementsBody } from './components';
 
 // Types
-import { Measurement, SignalPETMeasurementsPanelProps } from './types';
+import type { Measurement } from '../types';
 
-const SignalPETMeasurementsPanel: React.FC<SignalPETMeasurementsPanelProps> = ({
+const SignalPETMeasurementsPanel = ({
   servicesManager,
   commandsManager,
   ...props
-}) => {
+}: SignalPETMeasurementsPanelProps) => {
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [srVersions, setSRVersions] = useState([]);
   const [selectedSR, setSelectedSR] = useState(null);
@@ -24,44 +24,20 @@ const SignalPETMeasurementsPanel: React.FC<SignalPETMeasurementsPanelProps> = ({
     const { displaySetService, viewportGridService } = servicesManager.services;
 
     const updateActiveImage = () => {
-      console.log('[SignalPET Measurements Panel] Props received:', Object.keys(props));
-      console.log('[SignalPET Measurements Panel] All props:', props);
-
       try {
-        // Get active viewport ID from the service
         const activeViewportId = viewportGridService.getActiveViewportId();
-        console.log(
-          '[SignalPET Measurements Panel] Active viewport ID from service:',
-          activeViewportId
-        );
 
         if (activeViewportId) {
-          // Try to get viewport info from the viewportGridService
           const viewportGridState = viewportGridService.getState();
-          console.log('[SignalPET Measurements Panel] Viewport grid state:', viewportGridState);
-
           const viewport = viewportGridState.viewports.get(activeViewportId);
-          console.log('[SignalPET Measurements Panel] Viewport from grid service:', viewport);
 
           if (viewport?.displaySetInstanceUIDs?.[0]) {
             const displaySetInstanceUID = viewport.displaySetInstanceUIDs[0];
-            const displaySet = displaySetService.getDisplaySetByUID(displaySetInstanceUID);
-
-            console.log('[SignalPET Measurements Panel] DisplaySet:', displaySet);
-            console.log(
-              '[SignalPET Measurements Panel] Setting activeImageUID to:',
-              displaySetInstanceUID
-            );
-
             setActiveImageUID(displaySetInstanceUID);
           } else {
-            console.log(
-              '[SignalPET Measurements Panel] No displaySetInstanceUIDs found in viewport'
-            );
             setActiveImageUID(null);
           }
         } else {
-          console.log('[SignalPET Measurements Panel] No active viewport ID');
           setActiveImageUID(null);
         }
       } catch (error) {
@@ -120,12 +96,8 @@ const SignalPETMeasurementsPanel: React.FC<SignalPETMeasurementsPanelProps> = ({
   }, [servicesManager]);
 
   const loadMeasurementsForImage = async (imageUID: string) => {
-    if (!imageUID) {
-      console.log('[SignalPET Measurements Panel] No imageUID provided');
-      return;
-    }
+    if (!imageUID) return;
 
-    console.log('[SignalPET Measurements Panel] Loading measurements for image:', imageUID);
     setLoading(true);
     try {
       // Load SR versions for this image
@@ -133,7 +105,6 @@ const SignalPETMeasurementsPanel: React.FC<SignalPETMeasurementsPanelProps> = ({
         imageDisplaySetInstanceUID: imageUID,
       });
 
-      console.log('[SignalPET Measurements Panel] Found SR versions:', versions);
       setSRVersions(versions || []);
 
       if (versions?.length > 0) {
@@ -163,12 +134,8 @@ const SignalPETMeasurementsPanel: React.FC<SignalPETMeasurementsPanelProps> = ({
     const { measurementService } = servicesManager.services;
     const allMeasurements = measurementService.getMeasurements();
 
-    console.log('[SignalPET Measurements Panel] Raw measurements:', allMeasurements);
-
     // Transform measurements to match our interface
     const transformedMeasurements: Measurement[] = allMeasurements.map((measurement, index) => {
-      console.log('[SignalPET Measurements Panel] Processing measurement:', measurement);
-
       // Extract primary and secondary display text
       const primaryText = measurement.displayText?.primary
         ? measurement.displayText.primary.join(' ')
@@ -177,25 +144,20 @@ const SignalPETMeasurementsPanel: React.FC<SignalPETMeasurementsPanelProps> = ({
         ? measurement.displayText.secondary.join(' ')
         : '';
 
-      // Use the measurement's actual label if it exists, or fall back to tool name + index
       const toolName = measurement.toolName || 'Unknown';
 
       return {
         uid: measurement.uid,
-        label: measurement.label, // Keep the actual label from measurement service
+        label: measurement.label,
         toolName: toolName,
         primaryValue: primaryText,
         secondaryValue: secondaryText,
         sequenceNumber: index + 1,
         isVisible: measurement.isVisible !== false,
-        rawData: measurement.data, // Store raw measurement data
+        rawData: measurement.data,
       };
     });
 
-    console.log(
-      '[SignalPET Measurements Panel] Transformed measurements:',
-      transformedMeasurements
-    );
     setMeasurements(transformedMeasurements);
   };
 
@@ -212,8 +174,6 @@ const SignalPETMeasurementsPanel: React.FC<SignalPETMeasurementsPanelProps> = ({
 
       // Load measurements from the applied SR
       loadCurrentMeasurements();
-
-      console.log('[SignalPET Measurements Panel] Applied SR:', sr);
     } catch (error) {
       console.error('[SignalPET Measurements Panel] Failed to apply SR version:', error);
       const { uiNotificationService } = servicesManager.services;
@@ -247,11 +207,9 @@ const SignalPETMeasurementsPanel: React.FC<SignalPETMeasurementsPanelProps> = ({
     setLoading(true);
     try {
       // Use the proper SignalPET save command with user-provided name
-      const savedSR = await commandsManager.runCommand('signalpetSaveSR', {
+      await commandsManager.runCommand('signalpetSaveSR', {
         description: name,
       });
-
-      console.log('[SignalPET Measurements Panel] SR saved successfully:', savedSR);
 
       // Refresh the SR versions list to include the newly saved SR
       if (activeImageUID) {
@@ -279,6 +237,18 @@ const SignalPETMeasurementsPanel: React.FC<SignalPETMeasurementsPanelProps> = ({
     }
   };
 
+  // Hide all measurements handler
+  const handleHideAll = () => {
+    measurements.forEach(measurement => {
+      if (measurement.isVisible !== false) {
+        commandsManager.run('toggleVisibilityMeasurement', {
+          uid: measurement.uid,
+          annotationUID: measurement.uid,
+        });
+      }
+    });
+  };
+
   // Measurement action handler
   const handleMeasurementAction = (command: string, uid: string, value?: string) => {
     if (command === 'updateMeasurementLabel') {
@@ -297,7 +267,7 @@ const SignalPETMeasurementsPanel: React.FC<SignalPETMeasurementsPanelProps> = ({
     <ScrollArea>
       <div
         data-cy="signalpet-measurements-panel"
-        className="bg-primary-dark min-h-full"
+        className="relative min-h-full border-[#0c3b46] border-[0px_1px_1px] bg-[#08252c]"
       >
         {/* Custom Header */}
         <MeasurementHeader
@@ -306,6 +276,8 @@ const SignalPETMeasurementsPanel: React.FC<SignalPETMeasurementsPanelProps> = ({
           onSRSelection={handleSRSelection}
           onSaveMeasurements={handleSaveMeasurements}
           loading={loading}
+          measurementCount={measurements.length}
+          onHideAll={handleHideAll}
         />
 
         {/* Custom Measurements Body */}
@@ -318,6 +290,12 @@ const SignalPETMeasurementsPanel: React.FC<SignalPETMeasurementsPanelProps> = ({
       </div>
     </ScrollArea>
   );
+};
+
+type SignalPETMeasurementsPanelProps = {
+  servicesManager: any;
+  commandsManager: any;
+  [key: string]: any;
 };
 
 export default SignalPETMeasurementsPanel;

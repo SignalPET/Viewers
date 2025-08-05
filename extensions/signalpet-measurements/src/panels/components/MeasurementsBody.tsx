@@ -1,56 +1,46 @@
 import React from 'react';
-import MeasurementItem from './MeasurementItem';
+import MeasurementItem from './MeasurementItem/MeasurementItem';
+import type { Measurement } from '../../types';
 
-interface Measurement {
-  uid: string;
-  label?: string | null;
-  toolName?: string;
-  primaryValue?: string;
-  secondaryValue?: string;
-  isVisible?: boolean;
-  sequenceNumber?: number;
-  rawData?: any;
-}
-
-interface MeasurementsBodyProps {
-  measurements: Measurement[];
-  onAction: (command: string, uid: string, value?: string) => void;
-  editingMeasurement: string | null;
-  setEditingMeasurement: (uid: string | null) => void;
-}
-
-const EmptyComponent: React.FC = () => (
-  <div className="p-6">
-    <div className="text-primary-light/70 flex items-center justify-center py-8 text-sm">
-      No measurements available
-    </div>
+const EmptyState = () => (
+  <div className="flex items-center justify-center py-12 text-sm text-[#bfcbce]/70">
+    No measurements available
   </div>
 );
 
-const MeasurementsBody: React.FC<MeasurementsBodyProps> = ({
+const MeasurementsBody = ({
   measurements,
   onAction,
   editingMeasurement,
   setEditingMeasurement,
-}) => {
+}: MeasurementsBodyProps) => {
   if (!measurements || measurements.length === 0) {
-    return <EmptyComponent />;
+    return <EmptyState />;
   }
 
   return (
-    <div className="py-3">
-      {measurements.map((measurement, index) => (
-        <MeasurementItem
-          key={measurement.uid}
-          measurement={measurement}
-          index={index}
-          onAction={onAction}
-          editingMeasurement={editingMeasurement}
-          setEditingMeasurement={setEditingMeasurement}
-        />
-      ))}
+    <div className="border-t border-[#0c3b46] bg-[#08252c]">
+      <div className="flex flex-col gap-3 p-2">
+        {measurements.map((measurement, index) => (
+          <MeasurementItem
+            key={measurement.uid}
+            measurement={measurement}
+            index={index}
+            onAction={onAction}
+            editingMeasurement={editingMeasurement}
+            setEditingMeasurement={setEditingMeasurement}
+          />
+        ))}
+      </div>
     </div>
   );
+};
+
+type MeasurementsBodyProps = {
+  measurements: Measurement[];
+  onAction: (command: string, uid: string, value?: string) => void;
+  editingMeasurement: string | null;
+  setEditingMeasurement: (uid: string | null) => void;
 };
 
 export default MeasurementsBody;
