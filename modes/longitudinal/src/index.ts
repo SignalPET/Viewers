@@ -161,6 +161,8 @@ function modeFactory({ modeConfiguration }) {
         'AdvancedMagnify',
         'UltrasoundDirectionalTool',
         'WindowLevelRegion',
+        'Label',
+        'Eraser',
       ]);
 
       customizationService.setCustomizations({

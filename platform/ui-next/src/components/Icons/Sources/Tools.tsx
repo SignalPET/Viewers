@@ -3220,6 +3220,47 @@ export const ToolEraser = (props: IconProps) => (
   </svg>
 );
 
+export const ToolLabel = (props: IconProps) => (
+  <svg
+    width="24px"
+    height="24px"
+    viewBox="0 0 24 24"
+    {...props}
+  >
+    <g
+      id="tool-seg-label"
+      stroke="none"
+      strokeWidth="1"
+      fill="none"
+      fillRule="evenodd"
+    >
+      <rect id="Rectangle" x="0" y="0" width="24" height="24" />
+
+      <line
+        x1="7"
+        y1="8"
+        x2="17"
+        y2="8"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      <line
+        x1="12"
+        y1="8"
+        x2="12"
+        y2="17"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </g>
+  </svg>
+);
+
 export const ToolThreshold = (props: IconProps) => (
   <svg
     width="24px"

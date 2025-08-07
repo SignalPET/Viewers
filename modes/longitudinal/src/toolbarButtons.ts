@@ -364,6 +364,28 @@ const toolbarButtons: Button[] = [
     },
   },
   {
+    id: 'Label',
+    uiType: 'ohif.toolButton',
+    props: {
+      icon: 'icon-tool-label',
+      label: 'Label',
+      tooltip: 'Add free text to image',
+      commands: setToolActiveToolbar,
+      evaluate: 'evaluate.cornerstoneTool',
+    },
+  },
+  {
+    id: 'Eraser',
+    uiType: 'ohif.toolButton',
+    props: {
+      icon: 'icon-tool-eraser',
+      label: 'Eraser',
+      tooltip: 'Eraser',
+      commands: setToolActiveToolbar,
+      evaluate: 'evaluate.cornerstoneTool',
+    },
+  },
+  {
     id: 'Magnify',
     uiType: 'ohif.toolButton',
     props: {
