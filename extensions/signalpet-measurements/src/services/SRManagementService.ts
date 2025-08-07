@@ -342,6 +342,18 @@ export class SRManagementService implements SRManagementAPI {
       currentMeasurements = this.getCurrentMeasurements();
       console.log('[SRManagement] Final measurements in service:', currentMeasurements.length);
 
+      // Step 7: Ensure all loaded measurements are visible
+      if (currentMeasurements.length > 0) {
+        console.log('[SRManagement] Setting all measurements as visible...');
+        currentMeasurements.forEach(measurement => {
+          if (measurement.isVisible === undefined || measurement.isVisible === null) {
+            // Update measurement to be visible
+            measurementService.update(measurement.uid, { ...measurement, isVisible: true }, false);
+          }
+        });
+        console.log('[SRManagement] All measurements set to visible');
+      }
+
       // Return the applied SR version
       const srVersion: SRVersion = {
         displaySetInstanceUID: srDisplaySet.displaySetInstanceUID,

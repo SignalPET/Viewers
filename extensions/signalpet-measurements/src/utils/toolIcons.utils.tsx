@@ -146,8 +146,8 @@ const toolIconComponents = {
   angle: AngleIcon,
   freehand: LengthIcon,
   spline: LengthIcon,
-  arrow: AngleIcon,
-  annotation: AngleIcon,
+  arrow: ArrowIcon,
+  annotation: ArrowIcon,
 };
 
 // Map tool names to icon components with fallback logic

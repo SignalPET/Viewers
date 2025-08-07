@@ -53,6 +53,9 @@ const MeasurementItem = ({
     setIsDeleteDialogOpen(false);
   };
 
+  // Use the visibility state from the local measurement data
+  const isCurrentlyVisible = measurement.isVisible !== false;
+
   return (
     <div className="w-full rounded">
       <div
@@ -75,7 +78,7 @@ const MeasurementItem = ({
             />
 
             <MeasurementActions
-              isVisible={measurement.isVisible !== false}
+              isVisible={isCurrentlyVisible}
               onToggleVisibility={handleToggleVisibility}
               onDelete={handleDelete}
             />

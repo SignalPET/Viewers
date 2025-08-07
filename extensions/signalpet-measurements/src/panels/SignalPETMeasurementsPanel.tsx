@@ -241,7 +241,7 @@ const SignalPETMeasurementsPanel = ({
         second: '2-digit',
         hour12: false,
       });
-      const description = `Measurements ${timestamp}`;
+      const description = `${timestamp}`;
 
       // Use the proper SignalPET save command with timestamp description
       await commandsManager.runCommand('signalpetSaveSR', {
