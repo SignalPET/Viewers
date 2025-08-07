@@ -56,12 +56,13 @@ const MeasurementHeader = ({
       />
 
       {/* Save Annotations Dialog */}
-      <SaveAnnotationsDialog
-        isOpen={isDialogOpen}
-        onClose={handleDialogClose}
-        onConfirm={handleSRConfirm}
-        loading={loading}
-      />
+      {isDialogOpen && (
+        <SaveAnnotationsDialog
+          onClose={handleDialogClose}
+          onConfirm={handleSRConfirm}
+          loading={loading}
+        />
+      )}
     </div>
   );
 };

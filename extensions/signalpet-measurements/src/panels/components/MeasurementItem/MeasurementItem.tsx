@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import MeasurementNameEditor from './MeasurementNameEditor';
 import MeasurementActions from './MeasurementActions';
 import MeasurementValues from './MeasurementValues';
+import DeleteAnnotationDialog from '../DeleteAnnotationDialog';
 import type { Measurement } from '../../../types';
 
 const MeasurementItem = ({
@@ -11,6 +12,7 @@ const MeasurementItem = ({
   editingMeasurement,
   setEditingMeasurement,
 }: MeasurementItemProps) => {
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const isEditing = editingMeasurement === measurement.uid;
   const defaultName = `Measurement ${index + 1}`;
 
@@ -39,7 +41,16 @@ const MeasurementItem = ({
   };
 
   const handleDelete = () => {
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
     onAction('removeMeasurement', measurement.uid);
+    setIsDeleteDialogOpen(false);
+  };
+
+  const handleCancelDelete = () => {
+    setIsDeleteDialogOpen(false);
   };
 
   return (
@@ -77,6 +88,13 @@ const MeasurementItem = ({
           secondaryValue={measurement.secondaryValue}
         />
       </div>
+
+      {isDeleteDialogOpen && (
+        <DeleteAnnotationDialog
+          onClose={handleCancelDelete}
+          onConfirm={handleConfirmDelete}
+        />
+      )}
     </div>
   );
 };

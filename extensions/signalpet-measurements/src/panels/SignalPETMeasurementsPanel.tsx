@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ScrollArea } from '@ohif/ui-next';
 
 // Components
-import { MeasurementHeader, MeasurementsBody } from './components';
+import { MeasurementHeader, MeasurementsBody, UnsavedAnnotationsDialog } from './components';
 
 // Types
 import type { Measurement } from '../types';
@@ -18,6 +18,9 @@ const SignalPETMeasurementsPanel = ({
   const [loading, setLoading] = useState(false);
   const [activeImageUID, setActiveImageUID] = useState(null);
   const [editingMeasurement, setEditingMeasurement] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
 
   // Get currently active image - using services instead of props
   useEffect(() => {
@@ -59,6 +62,23 @@ const SignalPETMeasurementsPanel = ({
     };
   }, [servicesManager, props]);
 
+  // Add beforeunload event listener to warn about unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        event.preventDefault();
+        event.returnValue = ''; // Chrome requires returnValue to be set
+        return 'You have unsaved annotations. Are you sure you want to leave?';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [hasUnsavedChanges]);
+
   // Load measurements when active image changes
   useEffect(() => {
     if (activeImageUID) {
@@ -72,6 +92,7 @@ const SignalPETMeasurementsPanel = ({
 
     const updateMeasurements = () => {
       loadCurrentMeasurements();
+      setHasUnsavedChanges(true); // Mark as unsaved when measurements change
     };
 
     // Subscribe to measurement events
@@ -174,6 +195,9 @@ const SignalPETMeasurementsPanel = ({
 
       // Load measurements from the applied SR
       loadCurrentMeasurements();
+
+      // Reset unsaved changes when loading an existing SR
+      setHasUnsavedChanges(false);
     } catch (error) {
       console.error('[SignalPET Measurements Panel] Failed to apply SR version:', error);
       const { uiNotificationService } = servicesManager.services;
@@ -236,6 +260,9 @@ const SignalPETMeasurementsPanel = ({
         type: 'success',
         duration: 4000,
       });
+
+      // Reset unsaved changes state after successful save
+      setHasUnsavedChanges(false);
     } catch (error) {
       console.error('[SignalPET Measurements Panel] Failed to save SR:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -264,6 +291,11 @@ const SignalPETMeasurementsPanel = ({
 
   // Measurement action handler
   const handleMeasurementAction = (command: string, uid: string, value?: string) => {
+    // Track changes for commands that modify measurements
+    if (command === 'updateMeasurementLabel' || command === 'removeMeasurement') {
+      setHasUnsavedChanges(true);
+    }
+
     if (command === 'updateMeasurementLabel') {
       // Handle inline label update
       const { measurementService } = servicesManager.services;
@@ -275,6 +307,56 @@ const SignalPETMeasurementsPanel = ({
       commandsManager.run(command, { uid, annotationUID: uid, displayMeasurements: measurements });
     }
   };
+
+  // Unsaved annotations dialog handlers
+  const handleUnsavedDialogSave = async () => {
+    try {
+      await handleSaveMeasurements();
+      setShowUnsavedDialog(false);
+      if (pendingNavigation) {
+        pendingNavigation();
+        setPendingNavigation(null);
+      }
+    } catch (error) {
+      console.error('Failed to save annotations:', error);
+      // Keep dialog open on error
+    }
+  };
+
+  const handleUnsavedDialogLeave = () => {
+    setHasUnsavedChanges(false);
+    setShowUnsavedDialog(false);
+    if (pendingNavigation) {
+      pendingNavigation();
+      setPendingNavigation(null);
+    }
+  };
+
+  const handleUnsavedDialogClose = () => {
+    setShowUnsavedDialog(false);
+    setPendingNavigation(null);
+  };
+
+  // Expose method to check for unsaved changes before navigation
+  const checkUnsavedChanges = (navigationCallback?: () => void) => {
+    if (hasUnsavedChanges) {
+      setShowUnsavedDialog(true);
+      if (navigationCallback) {
+        setPendingNavigation(() => navigationCallback);
+      }
+      return false; // Navigation should be blocked
+    }
+    return true; // Safe to navigate
+  };
+
+  // Expose the checkUnsavedChanges function globally for external access
+  React.useEffect(() => {
+    (window as any).signalPETCheckUnsavedChanges = checkUnsavedChanges;
+
+    return () => {
+      delete (window as any).signalPETCheckUnsavedChanges;
+    };
+  }, [hasUnsavedChanges]);
 
   return (
     <ScrollArea>
@@ -301,6 +383,16 @@ const SignalPETMeasurementsPanel = ({
           setEditingMeasurement={setEditingMeasurement}
         />
       </div>
+
+      {/* Unsaved Annotations Dialog */}
+      {showUnsavedDialog && (
+        <UnsavedAnnotationsDialog
+          onClose={handleUnsavedDialogClose}
+          onSave={handleUnsavedDialogSave}
+          onLeaveWithoutSaving={handleUnsavedDialogLeave}
+          loading={loading}
+        />
+      )}
     </ScrollArea>
   );
 };

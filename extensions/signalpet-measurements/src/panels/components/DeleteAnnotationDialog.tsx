@@ -1,18 +1,16 @@
 import React from 'react';
 import ConfirmationDialog from './ConfirmationDialog';
 
-const SaveAnnotationsDialog = ({
+const DeleteAnnotationDialog = ({
   onClose,
   onConfirm,
   loading = false,
-}: SaveAnnotationsDialogProps) => {
+}: DeleteAnnotationDialogProps) => {
   const message = (
     <p>
-      You're about to save your annotations for this study.
+      Are you sure you want to delete this annotation?
       <br />
-      Make sure all measurements and notes are complete.
-      <br />
-      Would you like to proceed?
+      This action cannot be undone.
     </p>
   );
 
@@ -21,19 +19,19 @@ const SaveAnnotationsDialog = ({
       onClose={onClose}
       onConfirm={onConfirm}
       loading={loading}
-      title="Save Annotations"
+      title="Delete Annotation"
       message={message}
-      confirmText="Save SR"
+      confirmText="Delete"
       cancelText="Cancel"
-      loadingText="Saving..."
+      loadingText="Deleting..."
     />
   );
 };
 
-type SaveAnnotationsDialogProps = {
+type DeleteAnnotationDialogProps = {
   onClose: () => void;
   onConfirm: () => Promise<void>;
   loading?: boolean;
 };
 
-export default SaveAnnotationsDialog;
+export default DeleteAnnotationDialog;
