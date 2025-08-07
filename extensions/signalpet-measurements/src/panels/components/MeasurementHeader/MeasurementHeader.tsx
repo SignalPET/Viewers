@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import SRNameDialog from '../SRNameDialog';
+import SaveAnnotationsDialog from '../SaveAnnotationsDialog';
 import HeaderTitle from './HeaderTitle';
 import VersionSelector from './VersionSelector';
 import Toolbar from './Toolbar';
@@ -23,9 +23,9 @@ const MeasurementHeader = ({
     setIsDialogOpen(false);
   };
 
-  const handleSRNameSubmit = async (name: string) => {
+  const handleSRConfirm = async () => {
     try {
-      await onSaveMeasurements(name);
+      await onSaveMeasurements();
       setIsDialogOpen(false);
     } catch (error) {
       // Keep dialog open on error so user can retry
@@ -55,11 +55,11 @@ const MeasurementHeader = ({
         loading={loading}
       />
 
-      {/* SR Name Dialog */}
-      <SRNameDialog
+      {/* Save Annotations Dialog */}
+      <SaveAnnotationsDialog
         isOpen={isDialogOpen}
         onClose={handleDialogClose}
-        onConfirm={handleSRNameSubmit}
+        onConfirm={handleSRConfirm}
         loading={loading}
       />
     </div>
@@ -70,7 +70,7 @@ type MeasurementHeaderProps = {
   srVersions: any[];
   selectedSR: any;
   onSRSelection: (sr: any) => Promise<void>;
-  onSaveMeasurements: (name: string) => Promise<void>;
+  onSaveMeasurements: () => Promise<void>;
   loading: boolean;
   measurementCount: number;
   onHideAll: () => void;

@@ -190,7 +190,7 @@ const SignalPETMeasurementsPanel = ({
     }
   };
 
-  const handleSaveMeasurements = async (name: string) => {
+  const handleSaveMeasurements = async () => {
     const { measurementService, uiNotificationService } = servicesManager.services;
     const currentMeasurements = measurementService.getMeasurements();
 
@@ -206,9 +206,22 @@ const SignalPETMeasurementsPanel = ({
 
     setLoading(true);
     try {
-      // Use the proper SignalPET save command with user-provided name
+      // Generate timestamp-based description
+      const now = new Date();
+      const timestamp = now.toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      });
+      const description = `Measurements ${timestamp}`;
+
+      // Use the proper SignalPET save command with timestamp description
       await commandsManager.runCommand('signalpetSaveSR', {
-        description: name,
+        description: description,
       });
 
       // Refresh the SR versions list to include the newly saved SR
@@ -219,7 +232,7 @@ const SignalPETMeasurementsPanel = ({
       // Show success message
       uiNotificationService.show({
         title: 'SR Saved Successfully',
-        message: `Successfully saved ${currentMeasurements.length} measurements as "${name}"`,
+        message: `Successfully saved ${currentMeasurements.length} measurements as "${description}"`,
         type: 'success',
         duration: 4000,
       });
