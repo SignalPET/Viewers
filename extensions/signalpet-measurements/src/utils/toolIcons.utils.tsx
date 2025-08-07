@@ -95,6 +95,19 @@ const PointIcon = () => (
   </svg>
 );
 
+const ArrowIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className="size-full"
+  >
+    <path
+      d="M0.435165 10.3667H0C0 10.6292 0.191473 10.8354 0.435165 10.8354V10.3667ZM0.87033 7.04852C0.87033 6.78606 0.678858 6.57985 0.435165 6.57985C0.191473 6.57985 0 6.78606 0 7.04852H0.87033ZM3.51614 10.8354C3.75984 10.8354 3.95131 10.6292 3.95131 10.3667C3.95131 10.1042 3.75984 9.89803 3.51614 9.89803V10.8354ZM0.739786 10.6948L9.89565 0.833968L9.27773 0.168457L0.121859 10.0293L0.739786 10.6948ZM0.87033 10.3667V7.04852H0V10.3667H0.87033ZM0.435165 10.8354H3.51614V9.89803H0.435165V10.8354Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
 // Tool icon mapping for actual cornerstone tool names
 const toolIconComponents = {
   // Direct mappings for exact tool names
@@ -103,7 +116,7 @@ const toolIconComponents = {
   EllipticalROI: CircleIcon,
   RectangleROI: RectangleIcon,
   Bidirectional: LengthIcon,
-  ArrowAnnotate: AngleIcon,
+  ArrowAnnotate: ArrowIcon,
   Angle: AngleIcon,
   CobbAngle: AngleIcon,
   Probe: PointIcon,
