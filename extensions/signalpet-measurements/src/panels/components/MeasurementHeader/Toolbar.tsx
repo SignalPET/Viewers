@@ -8,7 +8,7 @@ const Toolbar = ({ measurementCount, onHideAll, onSaveMeasurements, loading }: T
     <div className="flex items-center gap-2">
       <Badge>
         <ToolIcon
-          toolName="circle"
+          toolName="arrow"
           className="h-3 w-3"
         />
         <span>({measurementCount})</span>

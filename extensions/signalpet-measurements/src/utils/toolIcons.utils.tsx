@@ -203,7 +203,7 @@ const getToolIconComponent = (toolName?: string): React.ComponentType => {
     return LengthIcon;
   }
   if (normalizedToolName.includes('arrow') || normalizedToolName.includes('annotation')) {
-    return AngleIcon;
+    return ArrowIcon;
   }
 
   // Default fallback
