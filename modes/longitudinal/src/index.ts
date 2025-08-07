@@ -162,6 +162,7 @@ function modeFactory({ modeConfiguration }) {
         'UltrasoundDirectionalTool',
         'WindowLevelRegion',
         'Label',
+        'Eraser',
       ]);
 
       customizationService.setCustomizations({

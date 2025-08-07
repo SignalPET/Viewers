@@ -375,6 +375,17 @@ const toolbarButtons: Button[] = [
     },
   },
   {
+    id: 'Eraser',
+    uiType: 'ohif.toolButton',
+    props: {
+      icon: 'icon-tool-eraser',
+      label: 'Eraser',
+      tooltip: 'Eraser',
+      commands: setToolActiveToolbar,
+      evaluate: 'evaluate.cornerstoneTool',
+    },
+  },
+  {
     id: 'Magnify',
     uiType: 'ohif.toolButton',
     props: {
