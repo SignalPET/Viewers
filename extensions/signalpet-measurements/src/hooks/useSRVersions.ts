@@ -68,42 +68,6 @@ export const useSRVersions = ({
     }
   };
 
-  const loadSRDataForDisplaySet = async (displaySetInstanceUID: string) => {
-    if (!displaySetInstanceUID) return;
-
-    setLoading(true);
-    try {
-      const versions = await commandsManager.runCommand('signalpetGetSRVersionsForImage', {
-        imageDisplaySetInstanceUID: displaySetInstanceUID,
-      });
-
-      setSRVersions(versions || []);
-
-      if (versions?.length > 0) {
-        const latestSR = versions[0];
-        try {
-          await commandsManager.runCommand('signalpetApplySR', {
-            displaySetInstanceUID: latestSR.displaySetInstanceUID,
-          });
-
-          setSelectedSR(latestSR);
-          onSRApplied?.(latestSR);
-
-          console.log(
-            '[SR Versions Hook] Manually loaded latest SR for image:',
-            displaySetInstanceUID
-          );
-        } catch (error) {
-          console.warn('[SR Versions Hook] Failed to apply SR:', error);
-        }
-      }
-    } catch (error) {
-      console.error('[SR Versions Hook] Failed to load SR data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const applySR = async (sr: SRVersion) => {
     if (!sr) return;
 
@@ -142,8 +106,8 @@ export const useSRVersions = ({
     srVersions,
     selectedSR,
     loading,
-    loadSRDataForDisplaySet,
     applySR,
     getCurrentDisplaySetUID,
+    getSRVersionsList,
   };
 };

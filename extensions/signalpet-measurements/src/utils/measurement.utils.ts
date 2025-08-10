@@ -37,7 +37,7 @@ export const saveMeasurementsWithNotification = async (
   commandsManager: any,
   uiNotificationService: any,
   getCurrentDisplaySetUID: () => string | undefined,
-  reloadSRData: (uid: string) => Promise<void>
+  refreshSRVersionsList: (uid: string) => Promise<void>
 ): Promise<void> => {
   const currentMeasurements = measurementService.getMeasurements();
 
@@ -69,7 +69,7 @@ export const saveMeasurementsWithNotification = async (
     });
 
     // Refresh the SR versions list to include the newly saved SR
-    await reloadSRData(displaySetInstanceUID);
+    await refreshSRVersionsList(displaySetInstanceUID);
 
     // Show success message
     showMeasurementNotification(
