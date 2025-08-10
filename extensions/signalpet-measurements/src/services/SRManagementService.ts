@@ -239,9 +239,18 @@ export class SRManagementService implements SRManagementAPI {
   }
 
   private createSRDescription(imageDisplaySetInstanceUID: string): string {
-    const timestamp = new Date().toISOString();
-    const imageContext = ` [Image: ${imageDisplaySetInstanceUID.substring(0, 8)}...]`;
-    return `SignalPET SR ${timestamp}${imageContext}`;
+    const now = new Date();
+
+    const dateOptions: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    };
+
+    const formattedDateTime = now.toLocaleDateString(undefined, dateOptions);
+    return `SignalPET SR ${formattedDateTime}`;
   }
 
   private async storeMeasurementsAsSR(
