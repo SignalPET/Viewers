@@ -100,12 +100,7 @@ export default async function init({
     handleGridStateChange
   );
 
-  const viewportReadySubscription = viewportGridService.subscribe(
-    viewportGridService.EVENTS.VIEWPORTS_READY,
-    handleGridStateChange
-  );
-
-  subscriptions = [gridStateChangeSubscription, viewportReadySubscription];
+  subscriptions = [gridStateChangeSubscription];
 
   isInitialized = true;
   console.log('[SignalPET Measurements] Extension initialized successfully');
