@@ -72,12 +72,6 @@ export const useMeasurements = ({
     });
   };
 
-  const clearAllMeasurements = () => {
-    const { measurementService } = servicesManager.services;
-    measurementService.clearMeasurements();
-    setMeasurements([]);
-  };
-
   return {
     measurements,
     editingMeasurement,
@@ -85,6 +79,5 @@ export const useMeasurements = ({
     loadMeasurementsFromService,
     handleMeasurementAction,
     hideAllMeasurements,
-    clearAllMeasurements,
   };
 };

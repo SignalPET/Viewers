@@ -12,15 +12,15 @@ export const useSRVersions = ({
   servicesManager,
   commandsManager,
   onSRApplied,
-  clearMeasurements,
 }: UseSRVersionsOptions) => {
   const [srVersions, setSRVersions] = useState<SRVersion[]>([]);
   const [selectedSR, setSelectedSR] = useState<SRVersion | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    const { viewportGridService, displaySetService } = servicesManager.services;
+
     const handleGridStateChange = () => {
-      const { viewportGridService } = servicesManager.services;
       const activeViewportId = viewportGridService.getActiveViewportId();
       const displaySetInstanceUID =
         viewportGridService.getDisplaySetsUIDsForViewport(activeViewportId)?.[0];
@@ -32,17 +32,46 @@ export const useSRVersions = ({
       }
     };
 
+    const handleDisplaySetsAdded = ({ displaySetsAdded }) => {
+      // Check if any SR displaySets were added
+      const newSRs = displaySetsAdded.filter(
+        ds =>
+          ds.Modality === 'SR' ||
+          (ds.SOPClassHandlerId && ds.SOPClassHandlerId.includes('dicom-sr')) ||
+          (ds.SOPClassUID && ds.SOPClassUID.includes('88.'))
+      );
+
+      if (newSRs.length > 0) {
+        console.log('[SR Versions Hook] New SR displaySets added, refreshing versions list');
+        // Refresh the current image's SR versions
+        const activeViewportId = viewportGridService.getActiveViewportId();
+        const displaySetInstanceUID =
+          viewportGridService.getDisplaySetsUIDsForViewport(activeViewportId)?.[0];
+
+        if (displaySetInstanceUID) {
+          getSRVersionsList(displaySetInstanceUID);
+        }
+      }
+    };
+
     // Listen for grid state changes (when displaySets change in viewports)
-    const subscription = servicesManager.services.viewportGridService.subscribe(
-      servicesManager.services.viewportGridService.EVENTS.GRID_STATE_CHANGED,
+    const gridSubscription = viewportGridService.subscribe(
+      viewportGridService.EVENTS.GRID_STATE_CHANGED,
       handleGridStateChange
+    );
+
+    // Listen for new displaySets being added (including newly saved SRs)
+    const displaySetSubscription = displaySetService.subscribe(
+      displaySetService.EVENTS.DISPLAY_SETS_ADDED,
+      handleDisplaySetsAdded
     );
 
     // Load initial data
     handleGridStateChange();
 
     return () => {
-      subscription.unsubscribe();
+      gridSubscription.unsubscribe();
+      displaySetSubscription.unsubscribe();
     };
   }, [servicesManager]);
 
@@ -108,6 +137,5 @@ export const useSRVersions = ({
     loading,
     applySR,
     getCurrentDisplaySetUID,
-    getSRVersionsList,
   };
 };

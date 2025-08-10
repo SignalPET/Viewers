@@ -33,7 +33,6 @@ const SignalPETMeasurementsPanel = ({
     loadMeasurementsFromService,
     handleMeasurementAction: baseMeasurementAction,
     hideAllMeasurements,
-    clearAllMeasurements,
   } = useMeasurements({
     servicesManager,
     commandsManager,
@@ -41,16 +40,14 @@ const SignalPETMeasurementsPanel = ({
   });
 
   // SR versions management
-  const { srVersions, selectedSR, loading, applySR, getCurrentDisplaySetUID, getSRVersionsList } =
-    useSRVersions({
-      servicesManager,
-      commandsManager,
-      clearMeasurements: clearAllMeasurements,
-      onSRApplied: () => {
-        loadMeasurementsFromService();
-        markAsSaved();
-      },
-    });
+  const { srVersions, selectedSR, loading, applySR, getCurrentDisplaySetUID } = useSRVersions({
+    servicesManager,
+    commandsManager,
+    onSRApplied: () => {
+      loadMeasurementsFromService();
+      markAsSaved();
+    },
+  });
 
   const handleMeasurementAction = (command: string, uid: string, value?: string) => {
     // Track changes for commands that modify measurements
@@ -78,9 +75,9 @@ const SignalPETMeasurementsPanel = ({
         servicesManager.services.measurementService,
         commandsManager,
         servicesManager.services.uiNotificationService,
-        getCurrentDisplaySetUID,
-        getSRVersionsList
+        getCurrentDisplaySetUID
       );
+
       markAsSaved();
     } catch (error) {
       // Error handling is done in the utility function

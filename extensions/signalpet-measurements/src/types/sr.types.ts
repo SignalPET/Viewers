@@ -17,6 +17,8 @@ export interface SRDisplaySet extends Types.DisplaySet {
   isHydrated?: boolean;
   isRehydratable?: boolean;
   load?: () => Promise<void>;
+  SOPClassUID?: string;
+  SOPClassHandlerId?: string;
 }
 
 export interface SRManagementAPI {

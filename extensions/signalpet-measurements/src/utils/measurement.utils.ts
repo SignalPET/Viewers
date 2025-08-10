@@ -36,8 +36,7 @@ export const saveMeasurementsWithNotification = async (
   measurementService: any,
   commandsManager: any,
   uiNotificationService: any,
-  getCurrentDisplaySetUID: () => string | undefined,
-  refreshSRVersionsList: (uid: string) => Promise<void>
+  getCurrentDisplaySetUID: () => string | undefined
 ): Promise<void> => {
   const currentMeasurements = measurementService.getMeasurements();
 
@@ -67,9 +66,6 @@ export const saveMeasurementsWithNotification = async (
     await commandsManager.runCommand('signalpetSaveSR', {
       imageDisplaySetInstanceUID: displaySetInstanceUID,
     });
-
-    // Refresh the SR versions list to include the newly saved SR
-    await refreshSRVersionsList(displaySetInstanceUID);
 
     // Show success message
     showMeasurementNotification(
