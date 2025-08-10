@@ -5,12 +5,14 @@ interface UseSRVersionsOptions {
   servicesManager: any;
   commandsManager: any;
   onSRApplied?: (sr: SRVersion | null) => void;
+  clearMeasurements?: () => void;
 }
 
 export const useSRVersions = ({
   servicesManager,
   commandsManager,
   onSRApplied,
+  clearMeasurements,
 }: UseSRVersionsOptions) => {
   const [srVersions, setSRVersions] = useState<SRVersion[]>([]);
   const [selectedSR, setSelectedSR] = useState<SRVersion | null>(null);
@@ -24,6 +26,8 @@ export const useSRVersions = ({
         viewportGridService.getDisplaySetsUIDsForViewport(activeViewportId)?.[0];
 
       if (displaySetInstanceUID) {
+        // Clear existing measurements before loading SR data for new image
+        clearMeasurements?.();
         loadSRDataForDisplaySet(displaySetInstanceUID);
       }
     };

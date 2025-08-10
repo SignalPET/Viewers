@@ -25,6 +25,21 @@ const SignalPETMeasurementsPanel = ({
     handleUnsavedDialogClose,
   } = useUnsavedChanges();
 
+  // Measurements management
+  const {
+    measurements,
+    editingMeasurement,
+    setEditingMeasurement,
+    loadMeasurementsFromService,
+    handleMeasurementAction: baseMeasurementAction,
+    hideAllMeasurements,
+    clearAllMeasurements,
+  } = useMeasurements({
+    servicesManager,
+    commandsManager,
+    onMeasurementChange: markAsUnsaved,
+  });
+
   // SR versions management
   const {
     srVersions,
@@ -36,24 +51,11 @@ const SignalPETMeasurementsPanel = ({
   } = useSRVersions({
     servicesManager,
     commandsManager,
+    clearMeasurements: clearAllMeasurements,
     onSRApplied: () => {
       loadMeasurementsFromService();
       markAsSaved();
     },
-  });
-
-  // Measurements management
-  const {
-    measurements,
-    editingMeasurement,
-    setEditingMeasurement,
-    loadMeasurementsFromService,
-    handleMeasurementAction: baseMeasurementAction,
-    hideAllMeasurements,
-  } = useMeasurements({
-    servicesManager,
-    commandsManager,
-    onMeasurementChange: markAsUnsaved,
   });
 
   const handleMeasurementAction = (command: string, uid: string, value?: string) => {

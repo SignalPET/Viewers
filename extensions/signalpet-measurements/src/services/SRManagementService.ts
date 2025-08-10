@@ -315,12 +315,13 @@ export class SRManagementService implements SRManagementAPI {
   private async hydrateSR(srDisplaySet: SRDisplaySet): Promise<void> {
     await srDisplaySet.load();
 
+    await this.delay(300);
+
     console.log('[SRManagement] Hydrating SR...');
     const result = await this.commandsManager.runCommand('hydrateStructuredReport', {
       displaySetInstanceUID: srDisplaySet.displaySetInstanceUID,
     });
     console.log('[SRManagement] SR hydrated successfully:', result);
-    await this.delay(500);
   }
 
   private ensureMeasurementsVisible(measurements: Measurement[]): void {

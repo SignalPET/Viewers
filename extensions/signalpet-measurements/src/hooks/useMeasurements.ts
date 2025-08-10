@@ -70,6 +70,14 @@ export const useMeasurements = ({
     });
   };
 
+  const clearAllMeasurements = () => {
+    const { measurementService } = servicesManager.services;
+    measurements.forEach(measurement => {
+      measurementService.remove(measurement.uid);
+    });
+    setMeasurements([]);
+  };
+
   return {
     measurements,
     editingMeasurement,
@@ -77,5 +85,6 @@ export const useMeasurements = ({
     loadMeasurementsFromService,
     handleMeasurementAction,
     hideAllMeasurements,
+    clearAllMeasurements,
   };
 };
