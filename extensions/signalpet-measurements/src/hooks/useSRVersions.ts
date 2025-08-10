@@ -125,17 +125,10 @@ export const useSRVersions = ({
     }
   };
 
-  const getCurrentDisplaySetUID = () => {
-    const { viewportGridService } = servicesManager.services;
-    const activeViewportId = viewportGridService.getActiveViewportId();
-    return viewportGridService.getDisplaySetsUIDsForViewport(activeViewportId)?.[0];
-  };
-
   return {
     srVersions,
     selectedSR,
     loading,
     applySR,
-    getCurrentDisplaySetUID,
   };
 };

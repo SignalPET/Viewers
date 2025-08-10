@@ -202,29 +202,38 @@ export class SRManagementService implements SRManagementAPI {
 
     // Extract from CurrentRequestedProcedureEvidenceSequence - this is the definitive reference
     const evidenceSequence = (srInstance as any).CurrentRequestedProcedureEvidenceSequence;
-    if (evidenceSequence && Array.isArray(evidenceSequence)) {
-      evidenceSequence.forEach(evidence => {
+    if (evidenceSequence) {
+      // Handle both single item and array formats
+      const evidenceItems = Array.isArray(evidenceSequence) ? evidenceSequence : [evidenceSequence];
+
+      for (const evidence of evidenceItems) {
         const referencedSeries = evidence.ReferencedSeriesSequence;
-        if (referencedSeries && Array.isArray(referencedSeries)) {
-          referencedSeries.forEach(series => {
-            const sopSequence = series.ReferencedSOPSequence;
-            if (sopSequence && Array.isArray(sopSequence)) {
-              sopSequence.forEach(sop => {
-                if (sop.ReferencedSOPInstanceUID) {
-                  referencedSOPs.push(sop.ReferencedSOPInstanceUID);
-                }
-              });
+        if (!referencedSeries) continue;
+
+        // Handle both single series and array of series
+        const seriesItems = Array.isArray(referencedSeries) ? referencedSeries : [referencedSeries];
+
+        for (const series of seriesItems) {
+          const sopSequence = series.ReferencedSOPSequence;
+          if (!sopSequence) continue;
+
+          // Handle both single SOP and array of SOPs
+          const sopItems = Array.isArray(sopSequence) ? sopSequence : [sopSequence];
+
+          for (const sop of sopItems) {
+            if (sop.ReferencedSOPInstanceUID) {
+              referencedSOPs.push(sop.ReferencedSOPInstanceUID);
             }
-          });
+          }
         }
-      });
+      }
     }
 
     console.log(
       '[SRManagement] Extracted referenced SOPs from SR CurrentRequestedProcedureEvidenceSequence:',
       referencedSOPs
     );
-    return [...new Set(referencedSOPs)]; // Remove duplicates
+    return [...new Set(referencedSOPs)];
   }
 
   private getDataSource(): Types.DataSourceDefinition {

@@ -8,7 +8,11 @@ import { MeasurementHeader, MeasurementsBody, UnsavedAnnotationsDialog } from '.
 import { useMeasurements, useSRVersions, useUnsavedChanges } from '../hooks';
 
 // Utils
-import { saveMeasurementsWithNotification, shouldMarkAsUnsaved } from '../utils/measurement.utils';
+import {
+  saveMeasurementsWithNotification,
+  shouldMarkAsUnsaved,
+  getCurrentDisplaySetUID,
+} from '../utils/measurement.utils';
 
 const SignalPETMeasurementsPanel = ({
   servicesManager,
@@ -40,7 +44,7 @@ const SignalPETMeasurementsPanel = ({
   });
 
   // SR versions management
-  const { srVersions, selectedSR, loading, applySR, getCurrentDisplaySetUID } = useSRVersions({
+  const { srVersions, selectedSR, loading, applySR } = useSRVersions({
     servicesManager,
     commandsManager,
     onSRApplied: () => {
@@ -75,7 +79,7 @@ const SignalPETMeasurementsPanel = ({
         servicesManager.services.measurementService,
         commandsManager,
         servicesManager.services.uiNotificationService,
-        getCurrentDisplaySetUID
+        getCurrentDisplaySetUID(servicesManager)
       );
 
       markAsSaved();

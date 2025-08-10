@@ -36,7 +36,7 @@ export const saveMeasurementsWithNotification = async (
   measurementService: any,
   commandsManager: any,
   uiNotificationService: any,
-  getCurrentDisplaySetUID: () => string | undefined
+  displaySetInstanceUID: string
 ): Promise<void> => {
   const currentMeasurements = measurementService.getMeasurements();
 
@@ -50,7 +50,6 @@ export const saveMeasurementsWithNotification = async (
     return;
   }
 
-  const displaySetInstanceUID = getCurrentDisplaySetUID();
   if (!displaySetInstanceUID) {
     showMeasurementNotification(
       uiNotificationService,
@@ -94,4 +93,13 @@ export const saveMeasurementsWithNotification = async (
 export const shouldMarkAsUnsaved = (command: string): boolean => {
   const unsavedCommands = ['updateMeasurementLabel', 'removeMeasurement'];
   return unsavedCommands.includes(command);
+};
+
+/**
+ * Gets the current active display set UID from the viewport grid service
+ */
+export const getCurrentDisplaySetUID = (servicesManager: any): string | undefined => {
+  const { viewportGridService } = servicesManager.services;
+  const activeViewportId = viewportGridService.getActiveViewportId();
+  return viewportGridService.getDisplaySetsUIDsForViewport(activeViewportId)?.[0];
 };
