@@ -41,6 +41,8 @@ export const useMeasurements = ({
       ),
     ];
 
+    loadMeasurementsFromService();
+
     return () => {
       subscriptions.forEach(sub => sub.unsubscribe());
     };
@@ -72,9 +74,7 @@ export const useMeasurements = ({
 
   const clearAllMeasurements = () => {
     const { measurementService } = servicesManager.services;
-    measurements.forEach(measurement => {
-      measurementService.remove(measurement.uid);
-    });
+    measurementService.clearMeasurements();
     setMeasurements([]);
   };
 

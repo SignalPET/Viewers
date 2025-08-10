@@ -23,7 +23,7 @@ async function autoLoadLatestSRForCurrentImage(
     );
 
     // Get the current active viewport to determine the active image
-    const { viewportGridService } = servicesManager.services;
+    const { viewportGridService, measurementService } = servicesManager.services;
     const activeViewportId = viewportGridService.getActiveViewportId();
 
     if (!activeViewportId) {
@@ -41,14 +41,18 @@ async function autoLoadLatestSRForCurrentImage(
 
     console.log('[SignalPET Measurements] Active image display set:', activeDisplaySetInstanceUID);
 
+    // Clear existing measurements before loading new ones to prevent duplicates
+    measurementService.clearMeasurements();
+    console.log('[SignalPET Measurements] Cleared existing measurements');
+
     const srService = new SRManagementService(servicesManager, commandsManager, extensionManager);
 
-    const appliedSR = await srService.applyLatestSRForImage(activeDisplaySetInstanceUID);
-
-    if (appliedSR) {
+    const versions = await srService.getSRVersionsForImage(activeDisplaySetInstanceUID);
+    if (versions?.length > 0) {
+      await srService.applySR(versions[0].displaySetInstanceUID);
       console.log(
         '[SignalPET Measurements] Successfully auto-loaded SR for image:',
-        appliedSR.displaySetInstanceUID
+        versions[0].displaySetInstanceUID
       );
     } else {
       console.log(
@@ -78,80 +82,30 @@ export default async function init({
 
   console.log('[SignalPET Measurements] Initializing extension...');
 
-  const { displaySetService, viewportGridService } = servicesManager.services;
+  const { viewportGridService } = servicesManager.services;
 
-  // Listen for displaySets being added to detect new SRs
-  const displaySetsAddedSubscription = displaySetService.subscribe(
-    displaySetService.EVENTS.DISPLAY_SETS_ADDED,
-    async ({ displaySetsAdded }) => {
-      console.log('[SignalPET Measurements] DisplaySets added, checking for SRs...');
+  // Function to handle grid state changes (when user switches images)
+  const handleGridStateChange = () => {
+    const activeViewportId = viewportGridService.getActiveViewportId();
+    const displaySetInstanceUID =
+      viewportGridService.getDisplaySetsUIDsForViewport(activeViewportId)?.[0];
 
-      // Check if any of the added displaySets are SRs
-      const newSRs = displaySetsAdded.filter(
-        ds =>
-          (ds.SOPClassHandlerId === SR_SOPCLASSHANDLERID ||
-            ds.SOPClassHandlerId === SR_SOPCLASSHANDLERID_3D) &&
-          ds.Modality === 'SR'
-      );
-
-      if (newSRs.length > 0) {
-        console.log(
-          `[SignalPET Measurements] Found ${newSRs.length} new SR(s), triggering auto-load check`
-        );
-
-        // Small delay to ensure all displaySets are properly added
-        setTimeout(() => {
-          autoLoadLatestSRForCurrentImage(servicesManager, commandsManager, extensionManager);
-        }, 500);
-      }
-    }
-  );
-
-  // Listen for displaySets changing (e.g., when study is fully loaded)
-  const displaySetsChangedSubscription = displaySetService.subscribe(
-    displaySetService.EVENTS.DISPLAY_SETS_CHANGED,
-    async activeDisplaySets => {
+    if (displaySetInstanceUID) {
       console.log(
-        '[SignalPET Measurements] DisplaySets changed, checking for auto-load opportunity...'
+        '[SignalPET Measurements] Grid state changed, auto-loading SR for image:',
+        displaySetInstanceUID
       );
-
-      // Check if we have any SRs and if auto-loading hasn't been attempted yet
-      const hasUnprocessedSRs = activeDisplaySets.some(
-        ds =>
-          (ds.SOPClassHandlerId === SR_SOPCLASSHANDLERID ||
-            ds.SOPClassHandlerId === SR_SOPCLASSHANDLERID_3D) &&
-          ds.Modality === 'SR' &&
-          ds.isRehydratable === true &&
-          !ds.isHydrated
-      );
-
-      if (hasUnprocessedSRs) {
-        console.log('[SignalPET Measurements] Found unprocessed SRs, attempting auto-load...');
-        // Small delay to ensure everything is settled
-        setTimeout(() => {
-          autoLoadLatestSRForCurrentImage(servicesManager, commandsManager, extensionManager);
-        }, 1000);
-      }
+      autoLoadLatestSRForCurrentImage(servicesManager, commandsManager, extensionManager);
     }
+  };
+
+  // Listen for grid state changes (when displaySets change in viewports or user switches images)
+  const gridStateChangeSubscription = viewportGridService.subscribe(
+    viewportGridService.EVENTS.GRID_STATE_CHANGED,
+    handleGridStateChange
   );
 
-  // Listen for viewports being ready (initial study load)
-  const viewportsReadySubscription = viewportGridService.subscribe(
-    viewportGridService.EVENTS.VIEWPORTS_READY,
-    () => {
-      console.log('[SignalPET Measurements] Viewports ready, checking for initial auto-load...');
-      // Delay to ensure displaySets are fully processed
-      setTimeout(() => {
-        autoLoadLatestSRForCurrentImage(servicesManager, commandsManager, extensionManager);
-      }, 2000);
-    }
-  );
-
-  subscriptions = [
-    displaySetsAddedSubscription,
-    displaySetsChangedSubscription,
-    viewportsReadySubscription,
-  ];
+  subscriptions = [gridStateChangeSubscription];
 
   isInitialized = true;
   console.log('[SignalPET Measurements] Extension initialized successfully');

@@ -26,9 +26,9 @@ export const useSRVersions = ({
         viewportGridService.getDisplaySetsUIDsForViewport(activeViewportId)?.[0];
 
       if (displaySetInstanceUID) {
-        // Clear existing measurements before loading SR data for new image
-        clearMeasurements?.();
-        loadSRDataForDisplaySet(displaySetInstanceUID);
+        // Only load SR versions list for UI display - do NOT apply SR
+        // The init.ts handles the actual measurement loading/clearing
+        getSRVersionsList(displaySetInstanceUID);
       }
     };
 
@@ -45,6 +45,28 @@ export const useSRVersions = ({
       subscription.unsubscribe();
     };
   }, [servicesManager]);
+
+  const getSRVersionsList = async (displaySetInstanceUID: string) => {
+    if (!displaySetInstanceUID) return;
+
+    setLoading(true);
+    try {
+      const versions = await commandsManager.runCommand('signalpetGetSRVersionsForImage', {
+        imageDisplaySetInstanceUID: displaySetInstanceUID,
+      });
+
+      setSRVersions(versions || []);
+
+      // Just set the UI state - don't apply any SR (init.ts handles that)
+      if (versions?.length > 0) {
+        setSelectedSR(versions[0]);
+      }
+    } catch (error) {
+      console.error('[SR Versions Hook] Failed to load SR data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadSRDataForDisplaySet = async (displaySetInstanceUID: string) => {
     if (!displaySetInstanceUID) return;
@@ -68,7 +90,7 @@ export const useSRVersions = ({
           onSRApplied?.(latestSR);
 
           console.log(
-            '[SR Versions Hook] Automatically loaded latest SR for image:',
+            '[SR Versions Hook] Manually loaded latest SR for image:',
             displaySetInstanceUID
           );
         } catch (error) {
