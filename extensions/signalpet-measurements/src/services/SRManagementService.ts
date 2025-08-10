@@ -3,9 +3,9 @@ import { SRManagementAPI, SRVersion, SRDisplaySet, Measurement } from '../types'
 
 export class SRManagementService implements SRManagementAPI {
   constructor(
-    private readonly servicesManager: any, // TODO: Type as AppTypes.ServicesManager when available
-    private readonly commandsManager: any, // TODO: Type as CommandsManager when available
-    private readonly extensionManager: any // TODO: Type as ExtensionManager when available
+    private readonly servicesManager: AppTypes.ServicesManager,
+    private readonly commandsManager: AppTypes.CommandsManager,
+    private readonly extensionManager: AppTypes.ExtensionManager
   ) {}
 
   /**
@@ -85,7 +85,7 @@ export class SRManagementService implements SRManagementAPI {
     }
 
     const dataSource = this.getDataSource();
-    const srDescription = this.createSRDescription(imageDisplaySetInstanceUID);
+    const srDescription = this.createSRDescription();
     const timestamp = new Date().toISOString();
 
     try {
@@ -228,7 +228,7 @@ export class SRManagementService implements SRManagementAPI {
   }
 
   private getDataSource(): Types.DataSourceDefinition {
-    const dataSources = this.extensionManager.getDataSources();
+    const dataSources = this.extensionManager.getDataSources('');
     const dataSource = dataSources[0] as Types.DataSourceDefinition;
 
     if (!dataSource) {
@@ -238,7 +238,7 @@ export class SRManagementService implements SRManagementAPI {
     return dataSource;
   }
 
-  private createSRDescription(imageDisplaySetInstanceUID: string): string {
+  private createSRDescription(): string {
     const now = new Date();
 
     const dateOptions: Intl.DateTimeFormatOptions = {

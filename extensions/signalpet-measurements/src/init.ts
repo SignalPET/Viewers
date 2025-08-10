@@ -4,11 +4,6 @@ import { SRManagementService } from './services/SRManagementService';
 let subscriptions = [];
 let isInitialized = false;
 
-// SR SOP Class Handler IDs - must match the actual IDs from cornerstone-dicom-sr extension
-const SR_SOPCLASSHANDLERID = '@ohif/extension-cornerstone-dicom-sr.sopClassHandlerModule.dicom-sr';
-const SR_SOPCLASSHANDLERID_3D =
-  '@ohif/extension-cornerstone-dicom-sr.sopClassHandlerModule.dicom-sr-3d';
-
 /**
  * Attempts to automatically load the latest SR for the current image using SRManagementService
  */
