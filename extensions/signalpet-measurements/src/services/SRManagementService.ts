@@ -69,7 +69,7 @@ export class SRManagementService implements SRManagementAPI {
   /**
    * Save SR for specific image display set
    */
-  async saveSR(imageDisplaySetInstanceUID: string): Promise<SRVersion> {
+  async saveSR(imageDisplaySetInstanceUID: string): Promise<void> {
     console.log(
       '[SRManagement] Saving current measurements as SR for image:',
       imageDisplaySetInstanceUID
@@ -103,15 +103,8 @@ export class SRManagementService implements SRManagementAPI {
         naturalizedReport
       );
 
-      // Wait for SR to be added to displaySets
-      await this.delay(1000);
-
-      // Convert the naturalized report to SRVersion format
-      return this.createSRVersionFromNaturalizedReport(
-        naturalizedReport,
-        srDescription,
-        measurements
-      );
+      // Wait for SR to be added to displaySets - the UI will automatically reload SR data
+      await this.delay(500);
     } catch (error) {
       console.error('[SRManagement] Failed to save SR:', error);
       throw new Error(`Failed to save SR: ${(error as Error).message}`);
@@ -281,35 +274,6 @@ export class SRManagementService implements SRManagementAPI {
     });
 
     return naturalizedReport;
-  }
-
-  /**
-   * Convert naturalized report from storeMeasurements to SRVersion format
-   */
-  private createSRVersionFromNaturalizedReport(
-    naturalizedReport: any,
-    srDescription: string,
-    measurements: Measurement[]
-  ): SRVersion {
-    if (
-      !naturalizedReport?.displaySetInstanceUID ||
-      !naturalizedReport?.SeriesInstanceUID ||
-      !naturalizedReport?.SOPInstanceUID
-    ) {
-      throw new Error('Naturalized report missing required UIDs');
-    }
-
-    const now = new Date();
-    return {
-      displaySetInstanceUID: naturalizedReport.displaySetInstanceUID,
-      SeriesInstanceUID: naturalizedReport.SeriesInstanceUID,
-      SOPInstanceUID: naturalizedReport.SOPInstanceUID,
-      SeriesDate: naturalizedReport.SeriesDate || now.toISOString().slice(0, 8),
-      SeriesTime: naturalizedReport.SeriesTime || now.toISOString().slice(11, 17).replace(/:/g, ''),
-      SeriesNumber: naturalizedReport.SeriesNumber || 999,
-      SeriesDescription: srDescription,
-      StudyInstanceUID: naturalizedReport.StudyInstanceUID,
-    };
   }
 
   private async hydrateSR(srDisplaySet: SRDisplaySet): Promise<void> {
