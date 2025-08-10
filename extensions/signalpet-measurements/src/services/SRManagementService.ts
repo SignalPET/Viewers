@@ -1,167 +1,43 @@
-import { SRManagementAPI, SRVersion } from '../types';
-
-// SR SOP Class Handler IDs
-const SR_SOPCLASSHANDLERID = '@ohif/extension-cornerstone-dicom-sr.sopClassHandlerModule.dicom-sr';
-const SR_SOPCLASSHANDLERID_3D =
-  '@ohif/extension-cornerstone-dicom-sr.sopClassHandlerModule.dicom-sr-3d';
+import { Types } from '@ohif/core';
+import { SRManagementAPI, SRVersion, SRDisplaySet, Measurement } from '../types';
 
 export class SRManagementService implements SRManagementAPI {
-  private servicesManager: any;
-  private commandsManager: any;
-  private extensionManager: any;
-
-  constructor(servicesManager: any, commandsManager: any, extensionManager: any) {
-    this.servicesManager = servicesManager;
-    this.commandsManager = commandsManager;
-    this.extensionManager = extensionManager;
-  }
+  constructor(
+    private readonly servicesManager: any, // TODO: Type as AppTypes.ServicesManager when available
+    private readonly commandsManager: any, // TODO: Type as CommandsManager when available
+    private readonly extensionManager: any // TODO: Type as ExtensionManager when available
+  ) {}
 
   /**
-   * Requirement 1: Read and load latest SR
-   * Finds and loads the most recent SR in the current study
-   */
-  async loadLatestSR(): Promise<SRVersion | null> {
-    console.log('[SRManagement] Loading latest SR...');
-
-    const allSRs = await this.getAllSRVersions();
-    if (allSRs.length === 0) {
-      console.log('[SRManagement] No SRs found');
-      return null;
-    }
-
-    // Sort by date/time/series number to get latest
-    const latestSR = this.sortSRsByLatest(allSRs)[0];
-    console.log('[SRManagement] Found latest SR:', latestSR.displaySetInstanceUID);
-
-    // Apply the latest SR
-    return await this.applySR(latestSR.displaySetInstanceUID);
-  }
-
-  /**
-   * Requirement 2: Get all SR versions
-   * Returns all SR displaySets in the current study (lightweight - no loading)
-   */
-  async getAllSRVersions(): Promise<SRVersion[]> {
-    console.log('[SRManagement] Getting all SR versions (metadata only)...');
-
-    const { displaySetService } = this.servicesManager.services;
-    const activeDisplaySets = displaySetService.getActiveDisplaySets();
-
-    const srDisplaySets = activeDisplaySets.filter(
-      ds =>
-        (ds.SOPClassHandlerId === SR_SOPCLASSHANDLERID ||
-          ds.SOPClassHandlerId === SR_SOPCLASSHANDLERID_3D) &&
-        ds.Modality === 'SR'
-    );
-
-    // Just return metadata without loading - for dropdown lists
-    const srVersions: SRVersion[] = srDisplaySets.map(srDS => ({
-      displaySetInstanceUID: srDS.displaySetInstanceUID,
-      SeriesInstanceUID: srDS.SeriesInstanceUID,
-      SOPInstanceUID: srDS.SOPInstanceUID,
-      SeriesDate: srDS.SeriesDate,
-      SeriesTime: srDS.SeriesTime,
-      SeriesNumber: srDS.SeriesNumber,
-      SeriesDescription: srDS.SeriesDescription,
-      isLoaded: srDS.isLoaded || false,
-      isHydrated: srDS.isHydrated || false,
-      isRehydratable: srDS.isRehydratable || false,
-      measurements: srDS.measurements || [],
-      StudyInstanceUID: srDS.StudyInstanceUID,
-    }));
-
-    console.log(`[SRManagement] Found ${srVersions.length} SR versions`);
-    return this.sortSRsByLatest(srVersions);
-  }
-
-  /**
-   * Get SR versions that reference a specific image/series
-   * Useful for per-image dropdown lists
+   * Get SR versions that reference a specific image by SOP Instance UID
    */
   async getSRVersionsForImage(imageDisplaySetInstanceUID: string): Promise<SRVersion[]> {
     console.log('[SRManagement] Getting SR versions for image:', imageDisplaySetInstanceUID);
 
-    const { displaySetService } = this.servicesManager.services;
-    const imageDisplaySet = displaySetService.getDisplaySetByUID(imageDisplaySetInstanceUID);
+    const imageDisplaySet = this.servicesManager.services.displaySetService.getDisplaySetByUID(
+      imageDisplaySetInstanceUID
+    ) as Types.DisplaySet;
 
-    if (!imageDisplaySet) {
-      console.warn('[SRManagement] Image displaySet not found:', imageDisplaySetInstanceUID);
+    if (!imageDisplaySet?.instances) {
+      console.warn(
+        '[SRManagement] Image displaySet not found or has no instances:',
+        imageDisplaySetInstanceUID
+      );
       return [];
     }
 
-    const allSRs = await this.getAllSRVersions();
+    const imageSOPInstanceUIDs = imageDisplaySet.instances.map(instance => instance.SOPInstanceUID);
+    console.log(
+      '[SRManagement] Looking for SRs referencing SOP Instance UIDs:',
+      imageSOPInstanceUIDs
+    );
+
+    const allSRs = this.getAllSRDisplaySets();
     const relevantSRs: SRVersion[] = [];
 
-    // For each SR, check if it references this image
     for (const sr of allSRs) {
-      // Load SR metadata if needed to check references
-      const srDisplaySet = displaySetService.getDisplaySetByUID(sr.displaySetInstanceUID);
-      if (!srDisplaySet) continue;
-
-      // If not loaded, load just the metadata (not full hydration)
-      if (!srDisplaySet.isLoaded && srDisplaySet.load) {
-        try {
-          await srDisplaySet.load();
-        } catch (error) {
-          console.error(
-            '[SRManagement] Failed to load SR metadata:',
-            sr.displaySetInstanceUID,
-            error
-          );
-          continue;
-        }
-      }
-
-      // Check if this SR references the target image
-      // Cross-reference using the correct data structures:
-      // 1. SR.referencedImages[].ReferencedSOPInstanceUID should match imageDisplaySet.instances[].SOPInstanceUID
-      // 2. SR.measurements[].displaySetInstanceUID should match imageDisplaySetInstanceUID
-      // 3. SR.measurements[].ReferencedSOPInstanceUID should match imageDisplaySet.instances[].SOPInstanceUID
-
-      const referencedImages = srDisplaySet.referencedImages || [];
-      const measurements = srDisplaySet.measurements || [];
-
-      // Method 1: Check if SR referencedImages contains SOPInstanceUIDs that match the image's instances
-      const matchByReferencedImages = referencedImages.some(ref => {
-        if (!ref.ReferencedSOPInstanceUID || !imageDisplaySet.instances) return false;
-        return imageDisplaySet.instances.some(
-          instance => instance.SOPInstanceUID === ref.ReferencedSOPInstanceUID
-        );
-      });
-
-      // Method 2: Check if SR measurements reference this displaySet directly
-      const matchByMeasurementDisplaySetUID = measurements.some(
-        measurement => measurement.displaySetInstanceUID === imageDisplaySetInstanceUID
-      );
-
-      // Method 3: Check if SR measurements contain SOPInstanceUIDs that match the image's instances
-      const matchByMeasurementSOPInstanceUID = measurements.some(measurement => {
-        if (!measurement.ReferencedSOPInstanceUID || !imageDisplaySet.instances) return false;
-        return imageDisplaySet.instances.some(
-          instance => instance.SOPInstanceUID === measurement.ReferencedSOPInstanceUID
-        );
-      });
-
-      const referencesThisImage =
-        matchByReferencedImages ||
-        matchByMeasurementDisplaySetUID ||
-        matchByMeasurementSOPInstanceUID;
-
-      console.log('[SRManagement] Match results:', {
-        matchByReferencedImages,
-        matchByMeasurementDisplaySetUID,
-        matchByMeasurementSOPInstanceUID,
-        finalResult: referencesThisImage,
-      });
-
-      if (referencesThisImage) {
-        // Update the SR version with loaded status
-        sr.isLoaded = srDisplaySet.isLoaded || false;
-        sr.isHydrated = srDisplaySet.isHydrated || false;
-        sr.isRehydratable = srDisplaySet.isRehydratable || false;
-        sr.measurements = srDisplaySet.measurements || [];
-
-        relevantSRs.push(sr);
+      if (this.doesSRReferenceImageSOPs(sr, imageSOPInstanceUIDs)) {
+        relevantSRs.push(this.createSRVersionFromDisplaySet(sr));
       }
     }
 
@@ -172,67 +48,85 @@ export class SRManagementService implements SRManagementAPI {
   }
 
   /**
-   * Requirement 3: Save SR
-   * Saves current measurements as a new SR
+   * Apply the latest SR for a specific image
    */
-  async saveSR(description?: string): Promise<SRVersion> {
-    console.log('[SRManagement] Saving current measurements as SR...');
+  async applyLatestSRForImage(imageDisplaySetInstanceUID: string): Promise<SRVersion | null> {
+    console.log('[SRManagement] Loading latest SR for image:', imageDisplaySetInstanceUID);
 
-    const { measurementService } = this.servicesManager.services;
-    const measurements = measurementService.getMeasurements();
+    const imageSRs = await this.getSRVersionsForImage(imageDisplaySetInstanceUID);
+    if (imageSRs.length === 0) {
+      console.log('[SRManagement] No SRs found for image:', imageDisplaySetInstanceUID);
+      return null;
+    }
 
-    if (!measurements || measurements.length === 0) {
+    const latestSR = this.sortSRsByLatest(imageSRs)[0];
+    console.log('[SRManagement] Found latest SR for image:', latestSR.displaySetInstanceUID);
+
+    await this.applySR(latestSR.displaySetInstanceUID);
+    return latestSR;
+  }
+
+  /**
+   * Save SR for specific image display set
+   */
+  async saveSR(imageDisplaySetInstanceUID: string): Promise<SRVersion> {
+    console.log(
+      '[SRManagement] Saving current measurements as SR for image:',
+      imageDisplaySetInstanceUID
+    );
+
+    if (!imageDisplaySetInstanceUID) {
+      throw new Error('Image display set instance UID is required for saving SR');
+    }
+
+    const measurements = this.getCurrentMeasurements();
+    if (measurements.length === 0) {
       throw new Error('No measurements to save');
     }
 
-    // Get data source for saving
-    const dataSources = this.extensionManager.getDataSources();
-    const dataSource = dataSources[0];
-
-    if (!dataSource) {
-      throw new Error('No data source available for saving SR');
-    }
-
-    // Prepare description for SR creation
-    const srDescription = description || `SignalPET SR ${new Date().toISOString()}`;
+    const dataSource = this.getDataSource();
+    const srDescription = this.createSRDescription(imageDisplaySetInstanceUID);
+    const timestamp = new Date().toISOString();
 
     try {
-      // Use the cornerstone-dicom-sr command to store measurements
-      // measurementData should be the array directly, not wrapped in an object
-      const result = await this.commandsManager.runCommand('storeMeasurements', {
-        measurementData: measurements, // Pass the measurements array directly
+      const naturalizedReport = await this.storeMeasurementsAsSR(
+        measurements,
         dataSource,
-        additionalFindingTypes: [],
-        options: {
-          description: srDescription,
-          SeriesDescription: srDescription, // DICOM series description
-        },
-      });
+        srDescription,
+        imageDisplaySetInstanceUID,
+        timestamp
+      );
 
-      console.log('[SRManagement] SR saved successfully:', result);
+      console.log(
+        '[SRManagement] SR saved successfully for image:',
+        imageDisplaySetInstanceUID,
+        naturalizedReport
+      );
 
-      // Wait a moment for the new SR to be added to displaySets
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Wait for SR to be added to displaySets
+      await this.delay(1000);
 
-      // Return the latest SR (should be the one we just created)
-      const allSRs = await this.getAllSRVersions();
-      return allSRs[0]; // Latest should be first after sorting
+      // Convert the naturalized report to SRVersion format
+      return this.createSRVersionFromNaturalizedReport(
+        naturalizedReport,
+        srDescription,
+        measurements
+      );
     } catch (error) {
       console.error('[SRManagement] Failed to save SR:', error);
-      throw new Error(`Failed to save SR: ${error.message}`);
+      throw new Error(`Failed to save SR: ${(error as Error).message}`);
     }
   }
 
   /**
-   * Requirement 4: Apply specific SR
-   * Loads and applies a specific SR by displaySetInstanceUID
-   * This will REPLACE current measurements with the SR measurements
+   * Apply specific SR
    */
-  async applySR(displaySetInstanceUID: string): Promise<SRVersion> {
+  async applySR(displaySetInstanceUID: string): Promise<void> {
     console.log('[SRManagement] Applying SR:', displaySetInstanceUID);
 
-    const { displaySetService, measurementService } = this.servicesManager.services;
-    const srDisplaySet = displaySetService.getDisplaySetByUID(displaySetInstanceUID);
+    const srDisplaySet = this.servicesManager.services.displaySetService.getDisplaySetByUID(
+      displaySetInstanceUID
+    ) as SRDisplaySet;
 
     if (!srDisplaySet) {
       throw new Error(`SR with displaySetInstanceUID ${displaySetInstanceUID} not found`);
@@ -243,188 +137,235 @@ export class SRManagementService implements SRManagementAPI {
     }
 
     try {
-      // Step 1: Clear existing measurements
-      console.log('[SRManagement] Clearing existing measurements...');
       this.clearCurrentMeasurements();
+      await this.hydrateSR(srDisplaySet);
 
-      // Step 2: Load the SR if not already loaded
-      if (!srDisplaySet.isLoaded && srDisplaySet.load) {
-        console.log('[SRManagement] Loading SR data...');
-        await srDisplaySet.load();
-      }
+      const measurements = this.getCurrentMeasurements();
+      this.ensureMeasurementsVisible(measurements);
 
-      // Step 3: Hydrate the SR to load measurements into measurement service
-      if (srDisplaySet.isRehydratable) {
-        console.log('[SRManagement] Hydrating SR...');
-        const result = await this.commandsManager.runCommand('hydrateStructuredReport', {
-          displaySetInstanceUID: srDisplaySet.displaySetInstanceUID,
-        });
-
-        console.log('[SRManagement] SR hydrated successfully:', result);
-
-        // Wait a moment for hydration to complete
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-
-      // Step 4: Direct measurements loading if hydration didn't work
-      let currentMeasurements = this.getCurrentMeasurements();
-      console.log(
-        '[SRManagement] Measurements in service after hydration:',
-        currentMeasurements.length
-      );
-
-      if (currentMeasurements.length === 0 && srDisplaySet.measurements?.length > 0) {
-        console.log(
-          '[SRManagement] Hydration did not load measurements, trying direct approach...'
-        );
-
-        try {
-          // Try direct measurement service loading
-          const { measurementService } = this.servicesManager.services;
-
-          // Add each measurement directly to the service
-          for (const measurement of srDisplaySet.measurements) {
-            if (measurement.loaded && measurement.imageId) {
-              try {
-                console.log(
-                  '[SRManagement] Adding measurement directly:',
-                  measurement.TrackingIdentifier
-                );
-
-                // Create measurement object in format expected by measurement service
-                const measurementToAdd = {
-                  uid: measurement.TrackingUniqueIdentifier,
-                  source: measurement,
-                  data: measurement,
-                  toolType: measurement.TrackingIdentifier?.split('@')[0] || 'Length',
-                  metadata: {
-                    toolName: measurement.TrackingIdentifier?.split('@')[0] || 'Length',
-                    referencedImageId: measurement.imageId,
-                    FrameOfReferenceUID: measurement.FrameOfReferenceUID,
-                  },
-                };
-
-                measurementService.addRawMeasurement(
-                  measurement.source || 'DICOM_SR',
-                  measurementToAdd
-                );
-              } catch (measurementError) {
-                console.warn(
-                  '[SRManagement] Failed to add individual measurement:',
-                  measurementError
-                );
-              }
-            }
-          }
-
-          currentMeasurements = this.getCurrentMeasurements();
-          console.log(
-            '[SRManagement] Measurements after direct loading:',
-            currentMeasurements.length
-          );
-        } catch (directError) {
-          console.warn('[SRManagement] Direct measurement loading failed:', directError);
-        }
-      }
-
-      // Step 5: Try measurement tracking if available
-      try {
-        await this.commandsManager.runCommand('loadTrackedSRMeasurements', {
-          displaySetInstanceUID: srDisplaySet.displaySetInstanceUID,
-          SeriesInstanceUID: srDisplaySet.SeriesInstanceUID,
-        });
-        console.log('[SRManagement] Measurement tracking initiated');
-      } catch (e) {
-        console.log('[SRManagement] Measurement tracking not available:', e.message);
-      }
-
-      // Step 6: Final verification
-      currentMeasurements = this.getCurrentMeasurements();
-      console.log('[SRManagement] Final measurements in service:', currentMeasurements.length);
-
-      // Step 7: Ensure all loaded measurements are visible
-      if (currentMeasurements.length > 0) {
-        console.log('[SRManagement] Setting all measurements as visible...');
-        currentMeasurements.forEach(measurement => {
-          if (measurement.isVisible === undefined || measurement.isVisible === null) {
-            // Update measurement to be visible
-            measurementService.update(measurement.uid, { ...measurement, isVisible: true }, false);
-          }
-        });
-        console.log('[SRManagement] All measurements set to visible');
-      }
-
-      // Return the applied SR version
-      const srVersion: SRVersion = {
-        displaySetInstanceUID: srDisplaySet.displaySetInstanceUID,
-        SeriesInstanceUID: srDisplaySet.SeriesInstanceUID,
-        SOPInstanceUID: srDisplaySet.SOPInstanceUID,
-        SeriesDate: srDisplaySet.SeriesDate,
-        SeriesTime: srDisplaySet.SeriesTime,
-        SeriesNumber: srDisplaySet.SeriesNumber,
-        SeriesDescription: srDisplaySet.SeriesDescription,
-        isLoaded: srDisplaySet.isLoaded || false,
-        isHydrated: srDisplaySet.isHydrated || false,
-        isRehydratable: srDisplaySet.isRehydratable || false,
-        measurements: srDisplaySet.measurements || [],
-        StudyInstanceUID: srDisplaySet.StudyInstanceUID,
-      };
-
-      console.log('[SRManagement] Successfully applied SR:', srVersion.displaySetInstanceUID);
-      console.log('[SRManagement] SR contains', srVersion.measurements.length, 'measurements');
-      return srVersion;
+      console.log('[SRManagement] Successfully applied SR:', srDisplaySet.displaySetInstanceUID);
+      console.log('[SRManagement] SR contains', measurements.length, 'measurements');
     } catch (error) {
       console.error('[SRManagement] Failed to apply SR:', error);
-      throw new Error(`Failed to apply SR: ${error.message}`);
+      throw new Error(`Failed to apply SR: ${(error as Error).message}`);
     }
   }
 
   /**
    * Get current measurements from the measurement service
    */
-  getCurrentMeasurements(): any[] {
-    const { measurementService } = this.servicesManager.services;
-    return measurementService.getMeasurements() || [];
+  getCurrentMeasurements(): Measurement[] {
+    return this.servicesManager.services.measurementService.getMeasurements() || [];
   }
 
   /**
    * Clear current measurements from the measurement service
    */
   clearCurrentMeasurements(): void {
-    const { measurementService } = this.servicesManager.services;
-    const measurements = measurementService.getMeasurements() || [];
-
-    // Remove each measurement
+    const measurements = this.getCurrentMeasurements();
     measurements.forEach(measurement => {
-      measurementService.remove(measurement.uid);
+      this.servicesManager.services.measurementService.remove(measurement.uid);
     });
-
     console.log('[SRManagement] Cleared all current measurements');
   }
 
+  // Private helper methods
+
+  private getAllSRDisplaySets(): SRDisplaySet[] {
+    const activeDisplaySets =
+      this.servicesManager.services.displaySetService.getActiveDisplaySets();
+
+    return activeDisplaySets.filter(ds => ds.Modality === 'SR') as SRDisplaySet[];
+  }
+
+  private doesSRReferenceImageSOPs(
+    srDisplaySet: SRDisplaySet,
+    imageSOPInstanceUIDs: string[]
+  ): boolean {
+    // Extract referenced SOP Instance UIDs from the SR DICOM content
+    const referencedSOPs = this.extractReferencedSOPsFromSR(srDisplaySet);
+
+    // Check if any of the image SOP Instance UIDs match the referenced ones
+    const hasMatch = imageSOPInstanceUIDs.some(sopUID => referencedSOPs.includes(sopUID));
+
+    if (hasMatch) {
+      console.log('[SRManagement] SR references image via SOP Instance UID match:', {
+        imageSOPs: imageSOPInstanceUIDs,
+        referencedSOPs: referencedSOPs,
+      });
+    }
+
+    return hasMatch;
+  }
+
+  private extractReferencedSOPsFromSR(srDisplaySet: SRDisplaySet): string[] {
+    const referencedSOPs: string[] = [];
+
+    if (!srDisplaySet.instances || srDisplaySet.instances.length === 0) {
+      return referencedSOPs;
+    }
+
+    const srInstance = srDisplaySet.instances[0];
+
+    // Extract from CurrentRequestedProcedureEvidenceSequence - this is the definitive reference
+    const evidenceSequence = (srInstance as any).CurrentRequestedProcedureEvidenceSequence;
+    if (evidenceSequence && Array.isArray(evidenceSequence)) {
+      evidenceSequence.forEach(evidence => {
+        const referencedSeries = evidence.ReferencedSeriesSequence;
+        if (referencedSeries && Array.isArray(referencedSeries)) {
+          referencedSeries.forEach(series => {
+            const sopSequence = series.ReferencedSOPSequence;
+            if (sopSequence && Array.isArray(sopSequence)) {
+              sopSequence.forEach(sop => {
+                if (sop.ReferencedSOPInstanceUID) {
+                  referencedSOPs.push(sop.ReferencedSOPInstanceUID);
+                }
+              });
+            }
+          });
+        }
+      });
+    }
+
+    console.log(
+      '[SRManagement] Extracted referenced SOPs from SR CurrentRequestedProcedureEvidenceSequence:',
+      referencedSOPs
+    );
+    return [...new Set(referencedSOPs)]; // Remove duplicates
+  }
+
+  private getDataSource(): Types.DataSourceDefinition {
+    const dataSources = this.extensionManager.getDataSources();
+    const dataSource = dataSources[0] as Types.DataSourceDefinition;
+
+    if (!dataSource) {
+      throw new Error('No data source available for saving SR');
+    }
+
+    return dataSource;
+  }
+
+  private createSRDescription(imageDisplaySetInstanceUID: string): string {
+    const timestamp = new Date().toISOString();
+    const imageContext = ` [Image: ${imageDisplaySetInstanceUID.substring(0, 8)}...]`;
+    return `SignalPET SR ${timestamp}${imageContext}`;
+  }
+
+  private async storeMeasurementsAsSR(
+    measurements: Measurement[],
+    dataSource: any,
+    srDescription: string,
+    imageDisplaySetInstanceUID: string,
+    timestamp: string
+  ): Promise<any> {
+    // Get SOP Instance UIDs for the source image to include in SR metadata
+    const imageDisplaySet = this.servicesManager.services.displaySetService.getDisplaySetByUID(
+      imageDisplaySetInstanceUID
+    );
+    const sourceSOPInstanceUIDs =
+      imageDisplaySet?.instances?.map(instance => instance.SOPInstanceUID) || [];
+
+    const naturalizedReport = await this.commandsManager.runCommand('storeMeasurements', {
+      measurementData: measurements,
+      dataSource,
+      additionalFindingTypes: [],
+      options: {
+        description: srDescription,
+        SeriesDescription: srDescription,
+        metadata: {
+          sourceSOPInstanceUIDs: sourceSOPInstanceUIDs,
+          measurementCount: measurements.length,
+          savedAt: timestamp,
+        },
+      },
+    });
+
+    return naturalizedReport;
+  }
+
   /**
-   * Sort SRs by latest first (SeriesDate desc, SeriesTime desc, SeriesNumber desc)
+   * Convert naturalized report from storeMeasurements to SRVersion format
    */
+  private createSRVersionFromNaturalizedReport(
+    naturalizedReport: any,
+    srDescription: string,
+    measurements: Measurement[]
+  ): SRVersion {
+    if (
+      !naturalizedReport?.displaySetInstanceUID ||
+      !naturalizedReport?.SeriesInstanceUID ||
+      !naturalizedReport?.SOPInstanceUID
+    ) {
+      throw new Error('Naturalized report missing required UIDs');
+    }
+
+    const now = new Date();
+    return {
+      displaySetInstanceUID: naturalizedReport.displaySetInstanceUID,
+      SeriesInstanceUID: naturalizedReport.SeriesInstanceUID,
+      SOPInstanceUID: naturalizedReport.SOPInstanceUID,
+      SeriesDate: naturalizedReport.SeriesDate || now.toISOString().slice(0, 8),
+      SeriesTime: naturalizedReport.SeriesTime || now.toISOString().slice(11, 17).replace(/:/g, ''),
+      SeriesNumber: naturalizedReport.SeriesNumber || 999,
+      SeriesDescription: srDescription,
+      StudyInstanceUID: naturalizedReport.StudyInstanceUID,
+    };
+  }
+
+  private async hydrateSR(srDisplaySet: SRDisplaySet): Promise<void> {
+    await srDisplaySet.load();
+
+    console.log('[SRManagement] Hydrating SR...');
+    const result = await this.commandsManager.runCommand('hydrateStructuredReport', {
+      displaySetInstanceUID: srDisplaySet.displaySetInstanceUID,
+    });
+    console.log('[SRManagement] SR hydrated successfully:', result);
+    await this.delay(500);
+  }
+
+  private ensureMeasurementsVisible(measurements: Measurement[]): void {
+    if (measurements.length > 0) {
+      console.log('[SRManagement] Setting all measurements as visible...');
+      const measurementService = this.servicesManager.services.measurementService;
+
+      measurements.forEach(measurement => {
+        if (measurement.isVisible === undefined || measurement.isVisible === null) {
+          measurementService.update(measurement.uid, { ...measurement, isVisible: true }, false);
+        }
+      });
+      console.log('[SRManagement] All measurements set to visible');
+    }
+  }
+
+  private createSRVersionFromDisplaySet(srDisplaySet: SRDisplaySet): SRVersion {
+    return {
+      displaySetInstanceUID: srDisplaySet.displaySetInstanceUID,
+      SeriesInstanceUID: srDisplaySet.SeriesInstanceUID || '',
+      SOPInstanceUID: srDisplaySet.instances?.[0]?.SOPInstanceUID || '',
+      SeriesDate: srDisplaySet.SeriesDate,
+      SeriesTime: srDisplaySet.SeriesTime,
+      SeriesNumber: srDisplaySet.SeriesNumber,
+      SeriesDescription: srDisplaySet.SeriesDescription,
+      StudyInstanceUID: srDisplaySet.StudyInstanceUID,
+    };
+  }
+
   private sortSRsByLatest(srs: SRVersion[]): SRVersion[] {
     return srs.sort((a, b) => {
       // Compare SeriesDate first
-      const dateA = a.SeriesDate || '';
-      const dateB = b.SeriesDate || '';
-      if (dateA !== dateB) {
-        return dateB.localeCompare(dateA);
-      }
+      const dateComparison = (b.SeriesDate || '').localeCompare(a.SeriesDate || '');
+      if (dateComparison !== 0) return dateComparison;
 
       // If dates are same, compare SeriesTime
-      const timeA = a.SeriesTime || '';
-      const timeB = b.SeriesTime || '';
-      if (timeA !== timeB) {
-        return timeB.localeCompare(timeA);
-      }
+      const timeComparison = (b.SeriesTime || '').localeCompare(a.SeriesTime || '');
+      if (timeComparison !== 0) return timeComparison;
 
       // If dates and times are same, compare SeriesNumber
-      const seriesNumA = a.SeriesNumber || 0;
-      const seriesNumB = b.SeriesNumber || 0;
-      return seriesNumB - seriesNumA;
+      return (b.SeriesNumber || 0) - (a.SeriesNumber || 0);
     });
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }

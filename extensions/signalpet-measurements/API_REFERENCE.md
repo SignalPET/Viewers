@@ -15,7 +15,7 @@ const versions = await commandsManager.runCommand('signalpetGetAllSRVersions');
 
 // Save current measurements
 const newSR = await commandsManager.runCommand('signalpetSaveSR', {
-  description: 'My SR'
+  imageDisplaySetInstanceUID: 'required-image-uid'
 });
 
 // Apply specific version

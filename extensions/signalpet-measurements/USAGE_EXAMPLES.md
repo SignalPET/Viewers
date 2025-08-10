@@ -77,13 +77,10 @@ const handleApplySR = async (displaySetInstanceUID: string) => {
 
 ```typescript
 const handleSaveCurrentMeasurements = async () => {
-  const description = prompt('Enter SR description:');
-  if (!description) return;
-
   setLoading(true);
   try {
     const newSR = await commandsManager.runCommand('signalpetSaveSR', {
-      description
+      imageDisplaySetInstanceUID: activeImageUID // Assuming activeImageUID is available in context
     });
     console.log('Saved new SR:', newSR.SeriesDescription);
 
@@ -149,13 +146,10 @@ function SRManagerPanel() {
   };
 
   const handleSave = async () => {
-    const description = prompt('Enter description for new SR:');
-    if (!description) return;
-
     setLoading(true);
     try {
       const newSR = await commandsManager.runCommand('signalpetSaveSR', {
-        description
+        imageDisplaySetInstanceUID: currentImageUID // Get from context/state
       });
       await loadAvailableSRs();
       setCurrentSR(newSR);

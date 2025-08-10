@@ -4,22 +4,19 @@ This extension provides comprehensive SR (Structured Report) management function
 
 ## Features
 
-### 1. Automatic SR Detection and Loading
-- Automatically detects and loads the latest SR when a study is opened
+### 1. Automatic Per-Image SR Detection and Loading
+- Automatically detects and loads the latest SR for each image when switching between images
 - Monitors for new SRs as they are added to the study
-- No manual intervention required
+- No manual intervention required - SR data is isolated per image
 
 ### 2. Complete SR Management API
 The extension provides commands for all SR management operations:
 
-#### Load Latest SR
+#### Apply Latest SR for Specific Image
 ```javascript
-const latestSR = await commandsManager.runCommand('signalpetLoadLatestSR');
-```
-
-#### Get All SR Versions (Study-wide)
-```javascript
-const allSRs = await commandsManager.runCommand('signalpetGetAllSRVersions');
+const latestSR = await commandsManager.runCommand('signalpetApplyLatestSRForImage', {
+  imageDisplaySetInstanceUID: 'image-uid-123'
+});
 ```
 
 #### Get SR Versions for Specific Image (Per-image dropdowns)
@@ -29,10 +26,10 @@ const imageSRs = await commandsManager.runCommand('signalpetGetSRVersionsForImag
 });
 ```
 
-#### Save Current Measurements as SR
+#### Save Current Measurements as SR (Per-Image)
 ```javascript
 const newSR = await commandsManager.runCommand('signalpetSaveSR', {
-  description: 'My SR Description'
+  imageDisplaySetInstanceUID: 'required-image-uid' // Required: the image display set UID to associate with this SR
 });
 ```
 
@@ -90,19 +87,23 @@ import { SRVersion, SRManagementAPI } from '@signalpet/extension-signalpet-measu
 // In your UI component
 const { commandsManager } = useSystem();
 
-// Load latest SR
-const handleLoadLatest = async () => {
+// Apply latest SR for current image
+const handleApplyLatestForImage = async (imageUID) => {
   try {
-    const sr = await commandsManager.runCommand('signalpetLoadLatestSR');
-    console.log('Loaded SR:', sr);
+    const sr = await commandsManager.runCommand('signalpetApplyLatestSRForImage', {
+      imageDisplaySetInstanceUID: imageUID
+    });
+    console.log('Applied SR for image:', sr);
   } catch (error) {
-    console.error('Failed to load SR:', error);
+    console.error('Failed to apply SR:', error);
   }
 };
 
-// Get all versions for display
-const handleGetVersions = async () => {
-  const versions = await commandsManager.runCommand('signalpetGetAllSRVersions');
+// Get versions for current image
+const handleGetVersionsForImage = async (imageUID) => {
+  const versions = await commandsManager.runCommand('signalpetGetSRVersionsForImage', {
+    imageDisplaySetInstanceUID: imageUID
+  });
   setAvailableVersions(versions);
 };
 ```

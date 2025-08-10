@@ -1,3 +1,5 @@
+import { Types } from '@ohif/core';
+
 export interface SRVersion {
   displaySetInstanceUID: string;
   SeriesInstanceUID: string;
@@ -6,28 +8,29 @@ export interface SRVersion {
   SeriesTime?: string;
   SeriesNumber?: number;
   SeriesDescription?: string;
-  isLoaded: boolean;
-  isHydrated: boolean;
-  isRehydratable: boolean;
-  measurements?: any[];
   StudyInstanceUID: string;
 }
 
+// Extended DisplaySet interface for SR-specific properties that exist at runtime
+export interface SRDisplaySet extends Types.DisplaySet {
+  isLoaded?: boolean;
+  isHydrated?: boolean;
+  isRehydratable?: boolean;
+  load?: () => Promise<void>;
+}
+
 export interface SRManagementAPI {
-  // Requirement 1: Read and load latest SR
-  loadLatestSR(): Promise<SRVersion | null>;
-
-  // Requirement 2: Get all SR versions
-  getAllSRVersions(): Promise<SRVersion[]>;
-
   // Get SR versions for a specific image/series
   getSRVersionsForImage(imageDisplaySetInstanceUID: string): Promise<SRVersion[]>;
 
-  // Requirement 3: Save SR
-  saveSR(description?: string): Promise<SRVersion>;
+  // Apply the latest SR for a specific image
+  applyLatestSRForImage(imageDisplaySetInstanceUID: string): Promise<SRVersion | null>;
 
-  // Requirement 4: Apply specific SR
-  applySR(displaySetInstanceUID: string): Promise<SRVersion>;
+  // Save SR for specific image display set
+  saveSR(imageDisplaySetInstanceUID: string): Promise<SRVersion>;
+
+  // Apply specific SR
+  applySR(displaySetInstanceUID: string): Promise<void>;
 
   // Utility methods
   getCurrentMeasurements(): any[];

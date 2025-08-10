@@ -1,4 +1,5 @@
-import { SRManagementService, SRVersion } from './services/SRManagementService';
+import { SRManagementService } from './services/SRManagementService';
+import { SRVersion } from './types';
 
 let srManagementService: SRManagementService | null = null;
 
@@ -14,22 +15,6 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }) 
 
   const actions = {
     /**
-     * Requirement 1: Read and load latest SR
-     * Usage: commandsManager.runCommand('signalpetLoadLatestSR')
-     */
-    signalpetLoadLatestSR: async (): Promise<SRVersion | null> => {
-      return await srManagementService.loadLatestSR();
-    },
-
-    /**
-     * Requirement 2: Get all SR versions
-     * Usage: commandsManager.runCommand('signalpetGetAllSRVersions')
-     */
-    signalpetGetAllSRVersions: async (): Promise<SRVersion[]> => {
-      return await srManagementService.getAllSRVersions();
-    },
-
-    /**
      * Get SR versions for a specific image (for per-image dropdowns)
      * Usage: commandsManager.runCommand('signalpetGetSRVersionsForImage', { imageDisplaySetInstanceUID: 'uid123' })
      */
@@ -42,15 +27,31 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }) 
     },
 
     /**
-     * Requirement 3: Save SR
-     * Usage: commandsManager.runCommand('signalpetSaveSR', { description: 'My SR Description' })
+     * Apply the latest SR for a specific image
+     * Usage: commandsManager.runCommand('signalpetApplyLatestSRForImage', { imageDisplaySetInstanceUID: 'uid123' })
      */
-    signalpetSaveSR: async ({ description }: { description?: string }): Promise<SRVersion> => {
-      return await srManagementService.saveSR(description);
+    signalpetApplyLatestSRForImage: async ({
+      imageDisplaySetInstanceUID,
+    }: {
+      imageDisplaySetInstanceUID: string;
+    }): Promise<SRVersion | null> => {
+      return await srManagementService.applyLatestSRForImage(imageDisplaySetInstanceUID);
     },
 
     /**
-     * Requirement 4: Apply specific SR
+     * Save SR for specific image display set
+     * Usage: commandsManager.runCommand('signalpetSaveSR', { imageDisplaySetInstanceUID: 'required-image-uid' })
+     */
+    signalpetSaveSR: async ({
+      imageDisplaySetInstanceUID,
+    }: {
+      imageDisplaySetInstanceUID: string;
+    }): Promise<SRVersion> => {
+      return await srManagementService.saveSR(imageDisplaySetInstanceUID);
+    },
+
+    /**
+     * Apply specific SR
      * Usage: commandsManager.runCommand('signalpetApplySR', { displaySetInstanceUID: 'uid123' })
      */
     signalpetApplySR: async ({
@@ -87,14 +88,11 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }) 
   };
 
   const definitions = {
-    signalpetLoadLatestSR: {
-      commandFn: actions.signalpetLoadLatestSR,
-    },
-    signalpetGetAllSRVersions: {
-      commandFn: actions.signalpetGetAllSRVersions,
-    },
     signalpetGetSRVersionsForImage: {
       commandFn: actions.signalpetGetSRVersionsForImage,
+    },
+    signalpetApplyLatestSRForImage: {
+      commandFn: actions.signalpetApplyLatestSRForImage,
     },
     signalpetSaveSR: {
       commandFn: actions.signalpetSaveSR,
