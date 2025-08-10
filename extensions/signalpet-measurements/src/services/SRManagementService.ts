@@ -281,11 +281,13 @@ export class SRManagementService implements SRManagementAPI {
 
     await this.delay(300);
 
-    console.log('[SRManagement] Hydrating SR...');
-    const result = await this.commandsManager.runCommand('hydrateStructuredReport', {
-      displaySetInstanceUID: srDisplaySet.displaySetInstanceUID,
-    });
-    console.log('[SRManagement] SR hydrated successfully:', result);
+    if (!srDisplaySet.isHydrated) {
+      console.log('[SRManagement] Hydrating SR...');
+      const result = await this.commandsManager.runCommand('hydrateStructuredReport', {
+        displaySetInstanceUID: srDisplaySet.displaySetInstanceUID,
+      });
+      console.log('[SRManagement] SR hydrated successfully:', result);
+    }
   }
 
   private ensureMeasurementsVisible(measurements: Measurement[]): void {
