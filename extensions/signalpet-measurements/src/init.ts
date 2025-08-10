@@ -94,13 +94,25 @@ export default async function init({
     }
   };
 
+  // Function to handle viewports ready (for initial load)
+  const handleViewportsReady = () => {
+    console.log('[SignalPET Measurements] Viewports ready, attempting initial auto-load...');
+    autoLoadLatestSRForCurrentImage(servicesManager, commandsManager, extensionManager);
+  };
+
   // Listen for grid state changes (when displaySets change in viewports or user switches images)
   const gridStateChangeSubscription = viewportGridService.subscribe(
     viewportGridService.EVENTS.GRID_STATE_CHANGED,
     handleGridStateChange
   );
 
-  subscriptions = [gridStateChangeSubscription];
+  // Listen for viewports ready event to handle initial load
+  const viewportsReadySubscription = viewportGridService.subscribe(
+    viewportGridService.EVENTS.VIEWPORTS_READY,
+    handleViewportsReady
+  );
+
+  subscriptions = [gridStateChangeSubscription, viewportsReadySubscription];
 
   isInitialized = true;
   console.log('[SignalPET Measurements] Extension initialized successfully');

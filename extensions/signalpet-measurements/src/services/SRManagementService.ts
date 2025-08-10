@@ -48,25 +48,6 @@ export class SRManagementService implements SRManagementAPI {
   }
 
   /**
-   * Apply the latest SR for a specific image
-   */
-  async applyLatestSRForImage(imageDisplaySetInstanceUID: string): Promise<SRVersion | null> {
-    console.log('[SRManagement] Loading latest SR for image:', imageDisplaySetInstanceUID);
-
-    const imageSRs = await this.getSRVersionsForImage(imageDisplaySetInstanceUID);
-    if (imageSRs.length === 0) {
-      console.log('[SRManagement] No SRs found for image:', imageDisplaySetInstanceUID);
-      return null;
-    }
-
-    const latestSR = this.sortSRsByLatest(imageSRs)[0];
-    console.log('[SRManagement] Found latest SR for image:', latestSR.displaySetInstanceUID);
-
-    await this.applySR(latestSR.displaySetInstanceUID);
-    return latestSR;
-  }
-
-  /**
    * Save SR for specific image display set
    */
   async saveSR(imageDisplaySetInstanceUID: string): Promise<void> {
@@ -102,9 +83,6 @@ export class SRManagementService implements SRManagementAPI {
         imageDisplaySetInstanceUID,
         naturalizedReport
       );
-
-      // Wait for SR to be added to displaySets - the UI will automatically reload SR data
-      await this.delay(500);
     } catch (error) {
       console.error('[SRManagement] Failed to save SR:', error);
       throw new Error(`Failed to save SR: ${(error as Error).message}`);

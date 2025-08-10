@@ -25,9 +25,6 @@ export interface SRManagementAPI {
   // Get SR versions for a specific image/series
   getSRVersionsForImage(imageDisplaySetInstanceUID: string): Promise<SRVersion[]>;
 
-  // Apply the latest SR for a specific image
-  applyLatestSRForImage(imageDisplaySetInstanceUID: string): Promise<SRVersion | null>;
-
   // Save SR for specific image display set
   saveSR(imageDisplaySetInstanceUID: string): Promise<void>;
 

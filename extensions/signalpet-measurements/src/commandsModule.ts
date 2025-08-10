@@ -27,18 +27,6 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }) 
     },
 
     /**
-     * Apply the latest SR for a specific image
-     * Usage: commandsManager.runCommand('signalpetApplyLatestSRForImage', { imageDisplaySetInstanceUID: 'uid123' })
-     */
-    signalpetApplyLatestSRForImage: async ({
-      imageDisplaySetInstanceUID,
-    }: {
-      imageDisplaySetInstanceUID: string;
-    }): Promise<SRVersion | null> => {
-      return await srManagementService.applyLatestSRForImage(imageDisplaySetInstanceUID);
-    },
-
-    /**
      * Save SR for specific image display set
      * Usage: commandsManager.runCommand('signalpetSaveSR', { imageDisplaySetInstanceUID: 'required-image-uid' })
      */
@@ -46,7 +34,7 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }) 
       imageDisplaySetInstanceUID,
     }: {
       imageDisplaySetInstanceUID: string;
-    }): Promise<SRVersion> => {
+    }): Promise<void> => {
       return await srManagementService.saveSR(imageDisplaySetInstanceUID);
     },
 
@@ -58,7 +46,7 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }) 
       displaySetInstanceUID,
     }: {
       displaySetInstanceUID: string;
-    }): Promise<SRVersion> => {
+    }): Promise<void> => {
       return await srManagementService.applySR(displaySetInstanceUID);
     },
 
@@ -90,9 +78,6 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }) 
   const definitions = {
     signalpetGetSRVersionsForImage: {
       commandFn: actions.signalpetGetSRVersionsForImage,
-    },
-    signalpetApplyLatestSRForImage: {
-      commandFn: actions.signalpetApplyLatestSRForImage,
     },
     signalpetSaveSR: {
       commandFn: actions.signalpetSaveSR,

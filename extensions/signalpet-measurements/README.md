@@ -12,13 +12,6 @@ This extension provides comprehensive SR (Structured Report) management function
 ### 2. Complete SR Management API
 The extension provides commands for all SR management operations:
 
-#### Apply Latest SR for Specific Image
-```javascript
-const latestSR = await commandsManager.runCommand('signalpetApplyLatestSRForImage', {
-  imageDisplaySetInstanceUID: 'image-uid-123'
-});
-```
-
 #### Get SR Versions for Specific Image (Per-image dropdowns)
 ```javascript
 const imageSRs = await commandsManager.runCommand('signalpetGetSRVersionsForImage', {
@@ -86,18 +79,6 @@ import { SRVersion, SRManagementAPI } from '@signalpet/extension-signalpet-measu
 ```javascript
 // In your UI component
 const { commandsManager } = useSystem();
-
-// Apply latest SR for current image
-const handleApplyLatestForImage = async (imageUID) => {
-  try {
-    const sr = await commandsManager.runCommand('signalpetApplyLatestSRForImage', {
-      imageDisplaySetInstanceUID: imageUID
-    });
-    console.log('Applied SR for image:', sr);
-  } catch (error) {
-    console.error('Failed to apply SR:', error);
-  }
-};
 
 // Get versions for current image
 const handleGetVersionsForImage = async (imageUID) => {
