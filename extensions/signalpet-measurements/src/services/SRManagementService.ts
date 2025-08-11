@@ -111,7 +111,6 @@ export class SRManagementService implements SRManagementAPI {
       await this.hydrateSR(srDisplaySet);
 
       const measurements = this.getCurrentMeasurements();
-      await this.delay(100);
       this.ensureMeasurementsVisible(measurements);
 
       console.log('[SRManagement] Successfully applied SR:', srDisplaySet.displaySetInstanceUID);
