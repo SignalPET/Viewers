@@ -274,11 +274,11 @@ export class SRManagementService implements SRManagementAPI {
   private async hydrateSR(srDisplaySet: SRDisplaySet): Promise<void> {
     await srDisplaySet.load();
 
-    await this.delay(300);
-
     if (!srDisplaySet.isHydrated) {
       console.log('[SRManagement] Clearing current measurements before hydrating SR...');
       this.clearCurrentMeasurements();
+
+      await this.delay(300);
 
       console.log('[SRManagement] Hydrating SR...');
       const result = await this.commandsManager.runCommand('hydrateStructuredReport', {
