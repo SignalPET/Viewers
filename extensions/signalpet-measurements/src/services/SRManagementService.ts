@@ -108,7 +108,6 @@ export class SRManagementService implements SRManagementAPI {
     }
 
     try {
-      this.clearCurrentMeasurements();
       await this.hydrateSR(srDisplaySet);
 
       const measurements = this.getCurrentMeasurements();
@@ -278,6 +277,9 @@ export class SRManagementService implements SRManagementAPI {
     await this.delay(300);
 
     if (!srDisplaySet.isHydrated) {
+      console.log('[SRManagement] Clearing current measurements before hydrating SR...');
+      this.clearCurrentMeasurements();
+
       console.log('[SRManagement] Hydrating SR...');
       const result = await this.commandsManager.runCommand('hydrateStructuredReport', {
         displaySetInstanceUID: srDisplaySet.displaySetInstanceUID,

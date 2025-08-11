@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import type { Measurement } from '../types';
 
 interface UseMeasurementsOptions {
-  servicesManager: any;
-  commandsManager: any;
+  servicesManager: AppTypes.ServicesManager;
+  commandsManager: AppTypes.CommandsManager;
   onMeasurementChange?: () => void;
 }
 
