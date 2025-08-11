@@ -94,10 +94,22 @@ export default async function init({
     }
   };
 
-  // Function to handle viewports ready (for initial load)
-  const handleViewportsReady = () => {
-    console.log('[SignalPET Measurements] Viewports ready, attempting initial auto-load...');
-    autoLoadLatestSRForCurrentImage(servicesManager, commandsManager, extensionManager);
+  // Function to handle active viewport changes (for initial load and viewport switches)
+  const handleActiveViewportChanged = ({ viewportId }) => {
+    console.log('[SignalPET Measurements] Active viewport changed to:', viewportId);
+
+    const displaySetInstanceUID =
+      viewportGridService.getDisplaySetsUIDsForViewport(viewportId)?.[0];
+
+    if (displaySetInstanceUID) {
+      console.log(
+        '[SignalPET Measurements] Auto-loading SR for active viewport image:',
+        displaySetInstanceUID
+      );
+      autoLoadLatestSRForCurrentImage(servicesManager, commandsManager, extensionManager);
+    } else {
+      console.log('[SignalPET Measurements] No display set found for viewport:', viewportId);
+    }
   };
 
   // Listen for grid state changes (when displaySets change in viewports or user switches images)
@@ -106,13 +118,13 @@ export default async function init({
     handleGridStateChange
   );
 
-  // Listen for viewports ready event to handle initial load
-  const viewportsReadySubscription = viewportGridService.subscribe(
-    viewportGridService.EVENTS.VIEWPORTS_READY,
-    handleViewportsReady
+  // Listen for active viewport changes (handles both initial load and viewport switches)
+  const activeViewportChangedSubscription = viewportGridService.subscribe(
+    viewportGridService.EVENTS.ACTIVE_VIEWPORT_ID_CHANGED,
+    handleActiveViewportChanged
   );
 
-  subscriptions = [gridStateChangeSubscription, viewportsReadySubscription];
+  subscriptions = [gridStateChangeSubscription, activeViewportChangedSubscription];
 
   isInitialized = true;
   console.log('[SignalPET Measurements] Extension initialized successfully');
