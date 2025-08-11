@@ -90,7 +90,9 @@ export default async function init({
         '[SignalPET Measurements] Grid state changed, auto-loading SR for image:',
         displaySetInstanceUID
       );
-      autoLoadLatestSRForCurrentImage(servicesManager, commandsManager, extensionManager);
+      requestAnimationFrame(() => {
+        autoLoadLatestSRForCurrentImage(servicesManager, commandsManager, extensionManager);
+      });
     }
   };
 
@@ -106,7 +108,10 @@ export default async function init({
         '[SignalPET Measurements] Auto-loading SR for active viewport image:',
         displaySetInstanceUID
       );
-      autoLoadLatestSRForCurrentImage(servicesManager, commandsManager, extensionManager);
+
+      requestAnimationFrame(() => {
+        autoLoadLatestSRForCurrentImage(servicesManager, commandsManager, extensionManager);
+      });
     } else {
       console.log('[SignalPET Measurements] No display set found for viewport:', viewportId);
     }
