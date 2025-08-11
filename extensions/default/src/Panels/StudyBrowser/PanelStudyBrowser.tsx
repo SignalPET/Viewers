@@ -166,10 +166,15 @@ function PanelStudyBrowser({
 
       // try to fetch the prior studies based on the patientID if the
       // server can respond.
-      try {
-        qidoStudiesForPatient = await getStudiesForPatientByMRN(qidoForStudyUID);
-      } catch (error) {
-        console.warn(error);
+
+      // NOTE! This caused a bug, where thumbnails were missing from the left-panel.
+      // Read more here: https://signal-pet.slack.com/lists/TDMN4QHDY/F099UE5VC4E?record_id=Rec099MSKM3D1
+      if (customizationService.getCustomization('studyBrowser.enableFetchingPatientHistoryViaOhif')) {
+        try {
+          qidoStudiesForPatient = await getStudiesForPatientByMRN(qidoForStudyUID);
+        } catch (error) {
+          console.warn(error);
+        }
       }
 
       const mappedStudies = _mapDataSourceStudies(qidoStudiesForPatient);
