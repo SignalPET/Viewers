@@ -293,7 +293,7 @@ export class SRManagementService implements SRManagementAPI {
     );
 
     const dicomWebDataSource = this.extensionManager.getModuleEntry(
-      '@ohif/extension-default.dataSourcesModule.dicomweb'
+      '@ohif/extension-default.dataSource.dicomweb'
     ) as any;
 
     if (!dicomWebDataSource) {
@@ -312,6 +312,13 @@ export class SRManagementService implements SRManagementAPI {
       this.servicesManager,
       this.extensionManager
     );
+
+    const currentUrl = new URL(window.location.href);
+    const params = Object.fromEntries(currentUrl.searchParams.entries());
+    dicomWebDataSourceInstance.initialize({
+      params,
+      query: currentUrl.searchParams,
+    });
 
     return dicomWebDataSourceInstance;
   }
