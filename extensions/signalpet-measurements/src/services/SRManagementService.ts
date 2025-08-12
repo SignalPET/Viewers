@@ -1,6 +1,5 @@
 import { Types } from '@ohif/core';
 import { SRManagementAPI, SRVersion, SRDisplaySet, Measurement } from '../types';
-import { customStoreMeasurements } from '../utils/customStoreMeasurements';
 
 export class SRManagementService implements SRManagementAPI {
   constructor(
@@ -254,10 +253,27 @@ export class SRManagementService implements SRManagementAPI {
     const sourceSOPInstanceUIDs =
       imageDisplaySet?.instances?.map(instance => instance.SOPInstanceUID) || [];
 
+    if (sourceSOPInstanceUIDs.length === 0) {
+      throw new Error('No SOP Instance UIDs found for the source image');
+    }
+
     // Get SignalPETStudyID - you can modify this logic to get it from wherever you store it
     const signalPETStudyID = this.getSignalPETStudyID(imageDisplaySet);
+    const request = new XMLHttpRequest();
 
-    const naturalizedReport = await customStoreMeasurements({
+    // Build the STOW URL with SignalPETStudyID query parameter
+    const finalUrl = `${dataSource.getConfig().wadoRoot}/studies/${sourceSOPInstanceUIDs[0]}`;
+    const finalUrlWithSignalPETStudyID = `${finalUrl}?SignalPETStudyID=${encodeURIComponent(
+      signalPETStudyID
+    )}`;
+
+    // Override the XMLHttpRequest open method to use our custom URL with query parameters
+    const originalOpen = request.open;
+    request.open = function (method: string, url: string, async?: boolean) {
+      return originalOpen.call(this, method, finalUrlWithSignalPETStudyID, async);
+    };
+
+    const naturalizedReport = await this.commandsManager.runCommand('storeMeasurements', {
       measurementData: measurements,
       dataSource: dataSource,
       additionalFindingTypes: [],
@@ -270,8 +286,7 @@ export class SRManagementService implements SRManagementAPI {
           savedAt: timestamp,
         },
       },
-      signalPETStudyID,
-      customizationService: this.servicesManager.services.customizationService,
+      request,
     });
 
     return naturalizedReport;
