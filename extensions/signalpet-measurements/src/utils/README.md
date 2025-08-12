@@ -1,8 +1,32 @@
-# Custom Store Measurements Utility
+# SignalPET Measurements Utilities
 
 ## Overview
 
+This directory contains utility functions for the SignalPET Measurements extension, including custom SR storage, viewport calibration, and measurement handling utilities.
+
+## Utilities
+
+### Custom Store Measurements Utility (`customStoreMeasurements.ts`)
+
 The `customStoreMeasurements.ts` utility provides a custom implementation for storing DICOM Structured Reports (SR) with the ability to add query parameters to the STOW-RS request URL.
+
+### Viewport Utilities (`viewport.utils.ts`)
+
+The viewport utilities help prevent coordinate transformation issues when loading annotations by checking viewport readiness and calibration.
+
+#### Functions:
+
+- **`checkViewportCalibration(viewportId, servicesManager)`**: Checks if a viewport is properly calibrated with correct image dimensions, canvas size, and camera positioning
+- **`checkTargetImagesReady(referencedSOPs, servicesManager)`**: Verifies that target images for an SR are loaded and the viewport is ready for annotation placement
+
+#### Purpose:
+
+These utilities prevent the common issue where annotations jump to the top-left corner (0,0 coordinates) due to:
+- Invalid image dimensions
+- Canvas not properly sized
+- Camera not positioned
+- Image spacing not set
+- Viewport not fully initialized
 
 ## Key Features
 

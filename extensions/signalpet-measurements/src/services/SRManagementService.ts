@@ -1,5 +1,6 @@
 import { Types } from '@ohif/core';
 import { SRManagementAPI, SRVersion, SRDisplaySet, Measurement } from '../types';
+import { checkTargetImagesReady } from '../utils';
 
 export class SRManagementService implements SRManagementAPI {
   constructor(
@@ -304,11 +305,88 @@ export class SRManagementService implements SRManagementAPI {
       console.log('[SRManagement] Clearing current measurements before hydrating SR...');
       this.clearCurrentMeasurements();
 
-      console.log('[SRManagement] Hydrating SR...');
-      const result = await this.commandsManager.runCommand('hydrateStructuredReport', {
-        displaySetInstanceUID: srDisplaySet.displaySetInstanceUID,
-      });
-      console.log('[SRManagement] SR hydrated successfully:', result);
+      console.log('[SRManagement] Hydrating SR with image loading retry...');
+      await this.hydrateWithImageLoadRetry(srDisplaySet);
+    }
+  }
+
+  /**
+   * Hydrate SR with retry logic to wait for image loading
+   * Uses exponential backoff to retry until the target image is loaded
+   */
+  private async hydrateWithImageLoadRetry(srDisplaySet: SRDisplaySet): Promise<void> {
+    const maxRetries = 10;
+    const baseDelay = 100; // Start with 100ms
+    const maxDelay = 3000; // Cap at 3 seconds
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        // Check if the target image(s) for this SR are loaded
+        const areImagesLoaded = await this.checkIfTargetImagesAreLoaded(srDisplaySet);
+
+        if (areImagesLoaded) {
+          console.log(
+            `[SRManagement] Target images are loaded, hydrating SR (attempt ${attempt + 1})`
+          );
+          const result = await this.commandsManager.runCommand('hydrateStructuredReport', {
+            displaySetInstanceUID: srDisplaySet.displaySetInstanceUID,
+          });
+          console.log('[SRManagement] SR hydrated successfully:', result);
+          return;
+        }
+
+        // Calculate delay with exponential backoff
+        const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
+        console.log(
+          `[SRManagement] Target images not loaded yet, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`
+        );
+
+        await this.delay(delay);
+      } catch (error) {
+        console.error(`[SRManagement] Error during hydration attempt ${attempt + 1}:`, error);
+
+        // If this is the last attempt, throw the error
+        if (attempt === maxRetries - 1) {
+          throw error;
+        }
+
+        // Otherwise, wait and retry
+        const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
+        await this.delay(delay);
+      }
+    }
+
+    // If we get here, we've exhausted all retries
+    console.warn('[SRManagement] Failed to hydrate SR after maximum retries - proceeding anyway');
+    const result = await this.commandsManager.runCommand('hydrateStructuredReport', {
+      displaySetInstanceUID: srDisplaySet.displaySetInstanceUID,
+    });
+    console.log('[SRManagement] SR hydrated successfully after max retries:', result);
+  }
+
+  /**
+   * Check if the target images referenced by the SR are loaded AND viewport is properly calibrated
+   * This prevents annotations from jumping to top-left corner due to coordinate transformation issues
+   */
+  private async checkIfTargetImagesAreLoaded(srDisplaySet: SRDisplaySet): Promise<boolean> {
+    try {
+      // Get the SOP Instance UIDs that this SR references
+      const referencedSOPs = this.extractReferencedSOPsFromSR(srDisplaySet);
+
+      // Use the utility function to check if images and viewport are ready
+      const result = await checkTargetImagesReady(referencedSOPs, this.servicesManager);
+
+      if (!result.imagesReady || !result.viewportReady) {
+        console.log('[SRManagement]', result.reason || 'Images/viewport not ready');
+        return false;
+      }
+
+      console.log('[SRManagement]', result.reason || 'Images and viewport ready');
+      return true;
+    } catch (error) {
+      console.error('[SRManagement] Error checking if target images are loaded:', error);
+      // In case of error, assume images are loaded to avoid infinite retry
+      return true;
     }
   }
 
