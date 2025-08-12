@@ -293,7 +293,7 @@ export class SRManagementService implements SRManagementAPI {
     );
 
     const dicomWebDataSource = this.extensionManager.getModuleEntry(
-      '@ohif/extension-default.dataSource.dicomweb'
+      '@ohif/extension-default.dataSourcesModule.dicomweb'
     ) as any;
 
     if (!dicomWebDataSource) {
