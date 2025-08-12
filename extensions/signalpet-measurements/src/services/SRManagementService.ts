@@ -292,45 +292,28 @@ export class SRManagementService implements SRManagementAPI {
       signalPETStudyID
     );
 
-    // Create a wrapper that only modifies the store.dicom method
-    return {
-      ...originalDataSource,
-      store: {
-        ...originalDataSource.store,
-        dicom: async (dataset: any, request: any, dicomDict: any) => {
-          console.log(
-            '[SignalPET] Intercepting STOW request to add SignalPETStudyID:',
-            signalPETStudyID
-          );
+    const dicomWebDataSource = this.extensionManager.getModuleEntry(
+      '@ohif/extension-default.dataSourcesModule.dicomweb'
+    ) as any;
 
-          // Get the original wadoRoot configuration to modify it for STOW
-          const config = originalDataSource.getConfig();
-          const originalWadoRoot = config.wadoRoot;
+    if (!dicomWebDataSource) {
+      throw new Error('Cannot find dicomweb data source module');
+    }
 
-          // Create a temporary modified configuration for this STOW request
-          const separator = originalWadoRoot.includes('?') ? '&' : '?';
-          const modifiedWadoRoot = `${originalWadoRoot}${separator}SignalPETStudyID=${encodeURIComponent(signalPETStudyID)}`;
+    const originalConfig = originalDataSource.getConfig();
 
-          console.log('[SignalPET] Modified STOW URL:', modifiedWadoRoot);
-
-          // Create a temporary data source with the modified configuration
-          const modifiedConfig = { ...config, wadoRoot: modifiedWadoRoot };
-
-          // Get the data source constructor/factory to create a new instance
-          const dataSources = this.extensionManager.getDataSources('');
-          const dataSourceFactory = dataSources[0];
-
-          // Create a new data source instance with the modified config
-          const tempDataSource = dataSourceFactory.create({
-            configuration: modifiedConfig,
-            servicesManager: this.servicesManager,
-          });
-
-          // Use the temporary data source for this STOW operation
-          return await tempDataSource.store.dicom(dataset, request, dicomDict);
-        },
-      },
+    const modifiedConfig = {
+      ...originalConfig,
+      wadoRoot: `${originalConfig.wadoRoot}${originalConfig.wadoRoot.includes('?') ? '&' : '?'}SignalPETStudyID=${encodeURIComponent(signalPETStudyID)}`,
     };
+
+    const dicomWebDataSourceInstance = dicomWebDataSource.createDataSource(
+      modifiedConfig,
+      this.servicesManager,
+      this.extensionManager
+    );
+
+    return dicomWebDataSourceInstance;
   }
 
   private async hydrateSR(srDisplaySet: SRDisplaySet): Promise<void> {
