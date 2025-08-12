@@ -25,6 +25,39 @@ window.config = {
   modes: [],
   customizationService: [
     {
+      // Custom STOW handling to add SignalPETStudyID query parameter
+      onBeforeDicomStore: ({ dicomDict, measurementData, naturalizedReport }) => {
+        // Get SignalPETStudyID from URL query parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const signalPETStudyID = urlParams.get('SignalPETStudyID');
+
+        if (signalPETStudyID) {
+          console.log('[SignalPET] Adding SignalPETStudyID to STOW request:', signalPETStudyID);
+
+          // Get the active data source and patch its store method
+          const dataSource = window.extensionManager.getActiveDataSource()[0];
+          if (dataSource && dataSource.store && dataSource.store.dicom) {
+            const originalStoreDicom = dataSource.store.dicom;
+
+            dataSource.store.dicom = async (dataset, request, dicomDictParam) => {
+              const modifiedRequest = {
+                ...request,
+                query: {
+                  ...(request?.query || {}),
+                  SignalPETStudyID: signalPETStudyID,
+                },
+              };
+
+              // Restore original method after this call
+              dataSource.store.dicom = originalStoreDicom;
+
+              return originalStoreDicom(dataset, modifiedRequest, dicomDictParam);
+            };
+          }
+        }
+
+        return dicomDict;
+      },
       'viewportOverlay.topLeft': {
         $set: [
           {
