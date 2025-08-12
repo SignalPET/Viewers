@@ -253,16 +253,14 @@ export class SRManagementService implements SRManagementAPI {
     const sourceSOPInstanceUIDs =
       imageDisplaySet?.instances?.map(instance => instance.SOPInstanceUID) || [];
 
-    if (sourceSOPInstanceUIDs.length === 0) {
-      throw new Error('No SOP Instance UIDs found for the source image');
-    }
+    const studyInstanceUID = imageDisplaySet?.StudyInstanceUID;
 
     // Get SignalPETStudyID - you can modify this logic to get it from wherever you store it
     const signalPETStudyID = this.getSignalPETStudyID(imageDisplaySet);
     const request = new XMLHttpRequest();
 
     // Build the STOW URL with SignalPETStudyID query parameter
-    const finalUrl = `${dataSource.getConfig().wadoRoot}/studies/${sourceSOPInstanceUIDs[0]}`;
+    const finalUrl = `${dataSource.getConfig().wadoRoot}/studies/${studyInstanceUID}`;
     const finalUrlWithSignalPETStudyID = `${finalUrl}?SignalPETStudyID=${encodeURIComponent(
       signalPETStudyID
     )}`;
