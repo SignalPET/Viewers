@@ -271,6 +271,7 @@ export class SRManagementService implements SRManagementAPI {
         },
       },
       signalPETStudyID,
+      customizationService: this.servicesManager.services.customizationService,
     });
 
     return naturalizedReport;
