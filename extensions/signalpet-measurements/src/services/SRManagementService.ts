@@ -1,5 +1,6 @@
 import { Types } from '@ohif/core';
 import { SRManagementAPI, SRVersion, SRDisplaySet, Measurement } from '../types';
+import { customStoreMeasurements } from '../utils/customStoreMeasurements';
 
 export class SRManagementService implements SRManagementAPI {
   constructor(
@@ -253,12 +254,12 @@ export class SRManagementService implements SRManagementAPI {
     const sourceSOPInstanceUIDs =
       imageDisplaySet?.instances?.map(instance => instance.SOPInstanceUID) || [];
 
-    // Create a wrapped data source that adds SignalPETStudyID to STOW requests
-    const wrappedDataSource = this.createSignalPETDataSourceWrapper(dataSource);
+    // Get SignalPETStudyID - you can modify this logic to get it from wherever you store it
+    const signalPETStudyID = this.getSignalPETStudyID(imageDisplaySet);
 
-    const naturalizedReport = await this.commandsManager.runCommand('storeMeasurements', {
+    const naturalizedReport = await customStoreMeasurements({
       measurementData: measurements,
-      dataSource: wrappedDataSource,
+      dataSource: dataSource,
       additionalFindingTypes: [],
       options: {
         description: srDescription,
@@ -269,58 +270,17 @@ export class SRManagementService implements SRManagementAPI {
           savedAt: timestamp,
         },
       },
+      signalPETStudyID,
     });
 
     return naturalizedReport;
   }
 
   /**
-   * Creates a wrapper around the data source that adds SignalPETStudyID query parameter
-   * to STOW requests while leaving other operations unchanged
+   * Get the SignalPETStudyID - modify this method to retrieve it from your data source
    */
-  private createSignalPETDataSourceWrapper(originalDataSource: any): any {
-    // Get the SignalPETStudyID from the current URL query parameters
-    const signalPETStudyID = new URLSearchParams(window.location.search).get('SignalPETStudyID');
-
-    // If no SignalPETStudyID, return the original data source unchanged
-    if (!signalPETStudyID) {
-      return originalDataSource;
-    }
-
-    console.log(
-      '[SignalPET] Creating data source wrapper with SignalPETStudyID:',
-      signalPETStudyID
-    );
-
-    const dicomWebDataSource = this.extensionManager.getModuleEntry(
-      '@ohif/extension-default.dataSourcesModule.dicomweb'
-    ) as any;
-
-    if (!dicomWebDataSource) {
-      throw new Error('Cannot find dicomweb data source module');
-    }
-
-    const originalConfig = originalDataSource.getConfig();
-
-    const modifiedConfig = {
-      ...originalConfig,
-      wadoRoot: `${originalConfig.wadoRoot}${originalConfig.wadoRoot.includes('?') ? '&' : '?'}SignalPETStudyID=${encodeURIComponent(signalPETStudyID)}`,
-    };
-
-    const dicomWebDataSourceInstance = dicomWebDataSource.createDataSource(
-      modifiedConfig,
-      this.servicesManager,
-      this.extensionManager
-    );
-
-    const currentUrl = new URL(window.location.href);
-    const params = Object.fromEntries(currentUrl.searchParams.entries());
-    dicomWebDataSourceInstance.initialize({
-      params,
-      query: currentUrl.searchParams,
-    });
-
-    return dicomWebDataSourceInstance;
+  private getSignalPETStudyID(imageDisplaySet: any): string {
+    return new URLSearchParams(window.location.search).get('SignalPETStudyID') || '';
   }
 
   private async hydrateSR(srDisplaySet: SRDisplaySet): Promise<void> {
