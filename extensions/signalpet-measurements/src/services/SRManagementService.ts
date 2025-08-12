@@ -304,8 +304,6 @@ export class SRManagementService implements SRManagementAPI {
       console.log('[SRManagement] Clearing current measurements before hydrating SR...');
       this.clearCurrentMeasurements();
 
-      await this.delay(300);
-
       console.log('[SRManagement] Hydrating SR...');
       const result = await this.commandsManager.runCommand('hydrateStructuredReport', {
         displaySetInstanceUID: srDisplaySet.displaySetInstanceUID,
