@@ -253,9 +253,12 @@ export class SRManagementService implements SRManagementAPI {
     const sourceSOPInstanceUIDs =
       imageDisplaySet?.instances?.map(instance => instance.SOPInstanceUID) || [];
 
+    // Create a wrapped data source that adds SignalPETStudyID to STOW requests
+    const wrappedDataSource = this.createSignalPETDataSourceWrapper(dataSource);
+
     const naturalizedReport = await this.commandsManager.runCommand('storeMeasurements', {
       measurementData: measurements,
-      dataSource,
+      dataSource: wrappedDataSource,
       additionalFindingTypes: [],
       options: {
         description: srDescription,
@@ -269,6 +272,65 @@ export class SRManagementService implements SRManagementAPI {
     });
 
     return naturalizedReport;
+  }
+
+  /**
+   * Creates a wrapper around the data source that adds SignalPETStudyID query parameter
+   * to STOW requests while leaving other operations unchanged
+   */
+  private createSignalPETDataSourceWrapper(originalDataSource: any): any {
+    // Get the SignalPETStudyID from the current URL query parameters
+    const signalPETStudyID = new URLSearchParams(window.location.search).get('SignalPETStudyID');
+
+    // If no SignalPETStudyID, return the original data source unchanged
+    if (!signalPETStudyID) {
+      return originalDataSource;
+    }
+
+    console.log(
+      '[SignalPET] Creating data source wrapper with SignalPETStudyID:',
+      signalPETStudyID
+    );
+
+    // Create a wrapper that only modifies the store.dicom method
+    return {
+      ...originalDataSource,
+      store: {
+        ...originalDataSource.store,
+        dicom: async (dataset: any, request: any, dicomDict: any) => {
+          console.log(
+            '[SignalPET] Intercepting STOW request to add SignalPETStudyID:',
+            signalPETStudyID
+          );
+
+          // Get the original wadoRoot configuration to modify it for STOW
+          const config = originalDataSource.getConfig();
+          const originalWadoRoot = config.wadoRoot;
+
+          // Create a temporary modified configuration for this STOW request
+          const separator = originalWadoRoot.includes('?') ? '&' : '?';
+          const modifiedWadoRoot = `${originalWadoRoot}${separator}SignalPETStudyID=${encodeURIComponent(signalPETStudyID)}`;
+
+          console.log('[SignalPET] Modified STOW URL:', modifiedWadoRoot);
+
+          // Create a temporary data source with the modified configuration
+          const modifiedConfig = { ...config, wadoRoot: modifiedWadoRoot };
+
+          // Get the data source constructor/factory to create a new instance
+          const dataSources = this.extensionManager.getDataSources('');
+          const dataSourceFactory = dataSources[0];
+
+          // Create a new data source instance with the modified config
+          const tempDataSource = dataSourceFactory.create({
+            configuration: modifiedConfig,
+            servicesManager: this.servicesManager,
+          });
+
+          // Use the temporary data source for this STOW operation
+          return await tempDataSource.store.dicom(dataset, request, dicomDict);
+        },
+      },
+    };
   }
 
   private async hydrateSR(srDisplaySet: SRDisplaySet): Promise<void> {
