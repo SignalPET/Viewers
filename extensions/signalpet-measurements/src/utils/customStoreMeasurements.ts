@@ -131,7 +131,7 @@ export const customStoreMeasurements = async ({
     const customRequest = new XMLHttpRequest();
 
     // Build the STOW URL
-    let finalUrl = `${dataSource.wadoRoot}/studies`;
+    let finalUrl = `${dataSource.getConfig().wadoRoot}/studies`;
     if (StudyInstanceUID) {
       finalUrl += `/${StudyInstanceUID}`;
     }
