@@ -1,331 +1,266 @@
 import type { Measurement } from '../types';
+import { measurementMappingUtils } from '@ohif/extension-cornerstone';
+import { utils } from '@ohif/core';
+import { roundNumber } from '@ohif/core/src/utils';
+
+// Import OHIF utility functions for consistent formatting
+const getDisplayUnit = (unit: string | undefined) => (unit == null ? '' : unit);
+
+const getStatisticDisplayString = (
+  numbers: number | number[],
+  unit: string | undefined,
+  key: string
+): string => {
+  if (Array.isArray(numbers) && numbers.length > 0) {
+    const results = numbers.map(number => utils.roundNumber(number, 2));
+    return `${key.charAt(0).toUpperCase() + key.slice(1)}: ${results.join(', ')} ${getDisplayUnit(unit)}`;
+  }
+
+  const result = utils.roundNumber(numbers as number, 2);
+  return `${key.charAt(0).toUpperCase() + key.slice(1)}: ${result} ${getDisplayUnit(unit)}`;
+};
 
 export interface DisplayText {
-  primary?: string;
-  secondary?: string;
+  primary?: string[];
+  secondary?: string[];
 }
 
 /**
- * Clean, simple function to extract display text from measurements
+ * Extract display text that replicates Cornerstone's textbox overlay formatting
+ *
+ * This function replicates the exact logic Cornerstone uses to generate textbox content
+ * from cachedStats, providing the same text that appears in the overlay annotations.
+ *
+ * Priority order for stats:
+ * 1. source.getAnnotation() - official measurement service method
+ * 2. measurement.data.cachedStats - embedded cached statistics
+ * 3. window.cornerstoneTools - fallback for direct tool access
+ * 4. measurement properties - direct statistical values
  */
-export function extractDisplayText(measurement: Measurement): DisplayText {
-  // Get the stats data from the nested structure
-  const stats = extractStatsFromMeasurement(measurement);
-
+/**
+ * Extract the formatted textbox content that replicates Cornerstone's display
+ * @param measurement - The measurement containing source and metadata
+ * @returns Array of formatted text lines exactly as they appear in Cornerstone textbox
+ */
+export function extractTextboxContent(measurement: Measurement): string[] {
+  const stats = extractStatsFromAnnotation(measurement);
   const toolName = measurement.toolName?.toLowerCase();
 
-  switch (toolName) {
-    case 'length':
-      return extractLengthText(stats);
-
-    case 'circleroi':
-    case 'ellipticalroi':
-    case 'rectangleroi':
-      return extractAreaText(stats);
-
-    case 'planarfreehandroi':
-      return extractFreehandText(stats);
-
-    case 'arrowannotate':
-      return extractArrowText(measurement);
-
-    case 'bidirectional':
-      return extractBidirectionalText(stats);
-
-    case 'angle':
-    case 'cobb':
-      return extractAngleText(stats);
-
-    case 'probe':
-      return extractProbeText(stats, measurement);
-
-    default:
-      return extractGenericText(stats, measurement);
+  if (!stats) {
+    return [];
   }
+
+  return formatStatsLikeCornerstoneTextbox(stats, toolName);
+}
+
+export function extractDisplayText(measurement: Measurement): DisplayText {
+  // Generate display text using Cornerstone's own formatting logic from cachedStats
+  const stats = extractStatsFromAnnotation(measurement);
+  const toolName = measurement.toolName?.toLowerCase();
+
+  const displayText: DisplayText = {
+    primary: [],
+    secondary: [],
+  };
+
+  if (!stats) {
+    return displayText;
+  }
+
+  // Use Cornerstone's formatting logic to replicate textbox content
+  const formattedLines = formatStatsLikeCornerstoneTextbox(stats, toolName);
+
+  if (formattedLines.length > 0) {
+    displayText.primary = formattedLines;
+    return displayText;
+  }
+
+  // Fallback: Format different stats based on tool type patterns from OHIF
+  const { area, max, mean, perimeter, areaUnit, modalityUnit, radiusUnit } = stats;
+
+  // Area-based tools (CircleROI, EllipticalROI, RectangleROI, PlanarFreehandROI)
+  if (area !== undefined && !isNaN(area)) {
+    const roundedArea = roundNumber(area, 2);
+    const unit = getDisplayUnit(areaUnit);
+    displayText.primary.push(`${roundedArea} ${unit}`);
+  }
+
+  // Show max value for area-based tools
+  if (max !== undefined && !isNaN(max)) {
+    const maxStr = getStatisticDisplayString(max, modalityUnit, 'max');
+    displayText.primary.push(maxStr);
+  }
+
+  // Show perimeter for circle tools (CircleROI)
+  if (perimeter !== undefined && !isNaN(perimeter) && toolName?.includes('circle')) {
+    const perimeterStr = getStatisticDisplayString(perimeter, radiusUnit, 'perimeter');
+    displayText.primary.push(perimeterStr);
+  }
+
+  // Show mean for region tools when max is not available
+  if (mean !== undefined && !isNaN(mean) && (max === undefined || isNaN(max))) {
+    const meanStr = getStatisticDisplayString(mean, modalityUnit, 'mean');
+    displayText.primary.push(meanStr);
+  }
+
+  return displayText;
 }
 
 /**
- * Extract stats from the nested measurement data structure
+ * Format statistics exactly like Cornerstone's textbox overlays
+ * This replicates the logic Cornerstone uses to generate textbox content from cachedStats
+ * @param stats - The statistics object from cachedStats
+ * @param toolName - The tool name for tool-specific formatting
+ * @returns Array of formatted text lines exactly as they appear in Cornerstone textbox
  */
-function extractStatsFromMeasurement(measurement: Measurement): Record<string, any> | null {
-  if (!measurement.data) return null;
+function formatStatsLikeCornerstoneTextbox(
+  stats: Record<string, any>,
+  toolName?: string
+): string[] {
+  const lines: string[] = [];
 
-  // Find the nested stats data under imageId keys
-  for (const [key, value] of Object.entries(measurement.data)) {
-    if (key.includes('imageId:') || key.includes('wadors:') || key.includes('http')) {
-      if (value && typeof value === 'object' && hasStatsData(value)) {
-        return value as Record<string, any>;
+  // Priority order matching Cornerstone's textbox display:
+  // 1. Area (for ROI tools)
+  // 2. Max value
+  // 3. Mean value
+  // 4. Standard deviation
+  // 5. Perimeter (for some tools)
+
+  // Format area (highest priority for ROI tools)
+  if (stats.area !== undefined && !isNaN(stats.area)) {
+    const area = roundNumber(stats.area, 2);
+    const unit = getDisplayUnit(stats.areaUnit);
+    lines.push(`${area} ${unit}`);
+  }
+
+  // Format max value
+  if (stats.max !== undefined && !isNaN(stats.max)) {
+    const max = roundNumber(stats.max, 2);
+    const unit = getDisplayUnit(stats.modalityUnit || stats.unit);
+    lines.push(`Max: ${max} ${unit}`);
+  }
+
+  // Format mean value
+  if (stats.mean !== undefined && !isNaN(stats.mean)) {
+    const mean = roundNumber(stats.mean, 2);
+    const unit = getDisplayUnit(stats.modalityUnit || stats.unit);
+    lines.push(`Mean: ${mean} ${unit}`);
+  }
+
+  // Format standard deviation
+  if (stats.stdDev !== undefined && !isNaN(stats.stdDev)) {
+    const stdDev = roundNumber(stats.stdDev, 2);
+    const unit = getDisplayUnit(stats.modalityUnit || stats.unit);
+    lines.push(`Std Dev: ${stdDev} ${unit}`);
+  }
+
+  // Format perimeter (for applicable tools)
+  if (stats.perimeter !== undefined && !isNaN(stats.perimeter)) {
+    const perimeter = roundNumber(stats.perimeter, 2);
+    const unit = getDisplayUnit(stats.perimeterUnit || stats.radiusUnit);
+    lines.push(`Perimeter: ${perimeter} ${unit}`);
+  }
+
+  // Format length (for Length tool)
+  if (stats.length !== undefined && !isNaN(stats.length)) {
+    const length = roundNumber(stats.length, 2);
+    const unit = getDisplayUnit(stats.lengthUnit || stats.unit);
+    lines.push(`${length} ${unit}`);
+  }
+
+  return lines;
+}
+
+/**
+ * Extract stats from annotation using both source.getAnnotation and fallback methods
+ * @param measurement - The measurement containing source and metadata
+ * @returns Stats from annotation data.cachedStats or measurement data
+ */
+function extractStatsFromAnnotation(measurement: Measurement): Record<string, any> | null {
+  try {
+    // Method 1: Use source.getAnnotation if available
+    if (measurement.source && 'getAnnotation' in measurement.source && measurement.toolName) {
+      const annotation = (measurement.source as any).getAnnotation(
+        measurement.toolName,
+        measurement.uid
+      );
+
+      // BONUS: If annotation has direct text field (exactly what shows in textbox overlay)
+      if (annotation?.data?.text) {
+        console.log(`[SignalPET] Found annotation.data.text: "${annotation.data.text}"`);
+        // This text is exactly what appears in the Cornerstone textbox overlay!
+        // You can use this directly if you want the exact same formatting
+      }
+
+      if (annotation?.data?.cachedStats) {
+        const cachedStats = annotation.data.cachedStats;
+
+        // Return the first available stats (similar to existing logic)
+        for (const [key, value] of Object.entries(cachedStats)) {
+          if (key.includes('imageId:') || key.includes('wadors:') || key.includes('http')) {
+            return value as Record<string, any>;
+          }
+        }
       }
     }
-  }
 
-  // Fallback to direct data if it has stats
-  if (hasStatsData(measurement.data)) {
-    return measurement.data;
-  }
+    // Method 2: Use measurement.data if available
+    if (measurement.data) {
+      // Check if measurement.data contains cachedStats directly
+      if (measurement.data.cachedStats) {
+        for (const [key, value] of Object.entries(measurement.data.cachedStats)) {
+          if (key.includes('imageId:') || key.includes('wadors:') || key.includes('http')) {
+            return value as Record<string, any>;
+          }
+        }
+      }
 
-  return null;
-}
-
-/**
- * Check if an object contains statistical data
- */
-function hasStatsData(obj: any): boolean {
-  if (!obj || typeof obj !== 'object') return false;
-
-  const statsKeys = ['area', 'mean', 'length', 'volume', 'max', 'min', 'stdDev'];
-  return statsKeys.some(key => obj[key] !== undefined);
-}
-
-/**
- * Extract display text for length measurements
- */
-function extractLengthText(stats: Record<string, any> | null): DisplayText {
-  if (!stats) return { primary: 'Length' };
-
-  const length = parseNumericValue(stats.length);
-  const unit = stats.unit || 'mm';
-
-  if (length !== null) {
-    return { primary: `${formatNumber(length)} ${unit}` };
-  }
-
-  return { primary: 'Length' };
-}
-
-/**
- * Extract display text for area measurements (Circle, Rectangle, Ellipse ROI)
- */
-function extractAreaText(stats: Record<string, any> | null): DisplayText {
-  if (!stats) return { primary: 'Area' };
-
-  const area = parseNumericValue(stats.area);
-  const mean = parseNumericValue(stats.mean);
-  const areaUnit = stats.areaUnit || 'mm²';
-  const modalityUnit = stats.modalityUnit || 'HU';
-
-  let primary: string | undefined;
-  let secondary: string | undefined;
-
-  if (area !== null) {
-    primary = `${formatNumber(area)} ${areaUnit}`;
-  }
-
-  if (mean !== null) {
-    secondary = `Mean: ${formatNumber(mean)} ${modalityUnit}`;
-  }
-
-  return {
-    primary: primary || 'Area',
-    secondary,
-  };
-}
-
-/**
- * Extract display text for freehand ROI measurements
- */
-function extractFreehandText(stats: Record<string, any> | null): DisplayText {
-  if (!stats) return { primary: 'Freehand' };
-
-  const length = parseNumericValue(stats.length);
-  const unit = stats.unit || 'mm';
-
-  if (length !== null) {
-    return { primary: `${formatNumber(length)} ${unit}` };
-  }
-
-  return { primary: 'Freehand' };
-}
-
-/**
- * Extract display text for arrow annotations
- */
-function extractArrowText(measurement: Measurement): DisplayText {
-  if (measurement.label && measurement.label.trim().length > 0) {
-    return { primary: measurement.label.trim() };
-  }
-
-  return { primary: 'Arrow' };
-}
-
-/**
- * Extract display text for probe measurements
- */
-function extractProbeText(
-  stats: Record<string, any> | null,
-  measurement: Measurement
-): DisplayText {
-  // For probe, try to get coordinates if no stats available
-  if (measurement.points && measurement.points.length >= 1) {
-    const point = measurement.points[0];
-    return {
-      primary: `(${formatNumber(point[0])}, ${formatNumber(point[1])})`,
-    };
-  }
-
-  return { primary: 'Probe' };
-}
-
-/**
- * Extract display text for bidirectional measurements
- */
-function extractBidirectionalText(stats: Record<string, any> | null): DisplayText {
-  if (!stats) return { primary: 'Bidirectional' };
-
-  const length = parseNumericValue(stats.length);
-  const width = parseNumericValue(stats.width);
-
-  let primary: string | undefined;
-  let secondary: string | undefined;
-
-  if (length !== null) {
-    primary = `${formatNumber(length)} mm`;
-  }
-
-  if (width !== null) {
-    secondary = `Short: ${formatNumber(width)} mm`;
-  }
-
-  return {
-    primary: primary || 'Bidirectional',
-    secondary,
-  };
-}
-
-/**
- * Extract display text for angle measurements
- */
-function extractAngleText(stats: Record<string, any> | null): DisplayText {
-  if (!stats) return { primary: 'Angle' };
-
-  const angle = parseNumericValue(stats.angle);
-
-  if (angle !== null) {
-    return { primary: `${formatNumber(angle)}°` };
-  }
-
-  return { primary: 'Angle' };
-}
-
-/**
- * Extract display text for unknown measurement types
- */
-function extractGenericText(
-  stats: Record<string, any> | null,
-  measurement: Measurement
-): DisplayText {
-  if (!stats) {
-    return extractFallbackText(measurement);
-  }
-
-  // Try common statistical values in order of preference
-  const statOrder = ['area', 'length', 'volume', 'mean', 'max', 'min', 'stdDev'];
-
-  for (const statName of statOrder) {
-    const value = parseNumericValue(stats[statName]);
-    if (value !== null) {
-      const unit = getUnitForStat(statName, stats);
-      return { primary: `${formatNumber(value)} ${unit}`.trim() };
+      // Or if measurement.data itself contains the stats
+      if (measurement.data.area !== undefined || measurement.data.max !== undefined) {
+        return measurement.data;
+      }
     }
-  }
 
-  return extractFallbackText(measurement);
-}
+    // Method 3: Fallback to window.cornerstoneTools (original approach)
+    const cornerstoneTools = (window as any).cornerstoneTools;
+    if (cornerstoneTools?.annotation?.state) {
+      const textBoxAnnotation = cornerstoneTools.annotation.state.getAnnotation(measurement.uid);
 
-/**
- * Parse a numeric value from various formats (string, number, object with .value)
- */
-function parseNumericValue(value: any): number | null {
-  if (value === undefined || value === null) return null;
+      // BONUS: Check for direct text field here too
+      if (textBoxAnnotation?.data?.text) {
+        console.log(
+          `[SignalPET] Found textBox annotation.data.text: "${textBoxAnnotation.data.text}"`
+        );
+        // This is exactly what appears in the Cornerstone textbox overlay!
+      }
 
-  // Handle string values
-  if (typeof value === 'string') {
-    const parsed = parseFloat(value);
-    return isNaN(parsed) ? null : parsed;
-  }
+      if (textBoxAnnotation?.data?.cachedStats) {
+        const cachedStats = textBoxAnnotation.data.cachedStats;
 
-  // Handle numeric values
-  if (typeof value === 'number') {
-    return isNaN(value) ? null : value;
-  }
-
-  // Handle object with .value property
-  if (typeof value === 'object' && value.value !== undefined) {
-    return parseNumericValue(value.value);
-  }
-
-  return null;
-}
-
-/**
- * Get appropriate unit for a statistic type
- */
-function getUnitForStat(statName: string, stats?: Record<string, any>): string {
-  // Try to get unit from stats first
-  if (stats) {
-    if (statName === 'area' && stats.areaUnit) return stats.areaUnit;
-    if (statName === 'length' && stats.unit) return stats.unit;
-    if (['mean', 'max', 'min', 'stdDev'].includes(statName) && stats.modalityUnit) {
-      return stats.modalityUnit;
+        for (const [key, value] of Object.entries(cachedStats)) {
+          if (key.includes('imageId:') || key.includes('wadors:') || key.includes('http')) {
+            return value as Record<string, any>;
+          }
+        }
+      }
     }
+
+    // Method 4: Use measurement's own statistical properties as fallback
+    const directStats: Record<string, any> = {};
+    if (measurement.area !== undefined) directStats.area = measurement.area;
+    if (measurement.mean !== undefined) directStats.mean = measurement.mean;
+    if (measurement.perimeter !== undefined) directStats.perimeter = measurement.perimeter;
+    if (measurement.cachedStats) {
+      Object.assign(directStats, measurement.cachedStats);
+    }
+
+    if (Object.keys(directStats).length > 0) {
+      return directStats;
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`[SignalPET] Error extracting stats from annotation ${measurement.uid}:`, error);
+    return null;
   }
-
-  // Fallback to default units
-  switch (statName) {
-    case 'area':
-      return 'mm²';
-    case 'length':
-      return 'mm';
-    case 'volume':
-      return 'mm³';
-    case 'mean':
-    case 'max':
-    case 'min':
-    case 'stdDev':
-      return 'HU';
-    default:
-      return '';
-  }
-}
-
-/**
- * Format numbers for display (remove unnecessary decimals)
- */
-function formatNumber(value: number): string {
-  if (!isFinite(value)) return '0';
-
-  // Round to 2 decimal places and remove trailing zeros
-  const rounded = Math.round(value * 100) / 100;
-  return rounded.toString();
-}
-
-/**
- * Fallback text when no stats data is available
- */
-function extractFallbackText(measurement: Measurement): DisplayText {
-  if (measurement.label) {
-    return { primary: measurement.label };
-  }
-
-  if (measurement.toolName) {
-    return { primary: measurement.toolName };
-  }
-
-  return { primary: 'Measurement' };
-}
-
-/**
- * Helper to get the primary display value as a string
- */
-export function getPrimaryDisplayValue(measurement: Measurement): string | undefined {
-  const displayText = extractDisplayText(measurement);
-  return displayText.primary;
-}
-
-/**
- * Helper to get the secondary display value as a string
- */
-export function getSecondaryDisplayValue(measurement: Measurement): string | undefined {
-  const displayText = extractDisplayText(measurement);
-  return displayText.secondary;
 }

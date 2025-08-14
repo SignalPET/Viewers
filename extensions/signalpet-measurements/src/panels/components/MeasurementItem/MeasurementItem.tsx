@@ -62,9 +62,9 @@ const MeasurementItem = ({
   // Use the visibility state from the local measurement data
   const isCurrentlyVisible = measurement.isVisible !== false;
 
-  // Extract display values from our custom extraction
-  const primaryValue = displayText.primary;
-  const secondaryValue = displayText.secondary;
+  // Extract display values from our custom extraction and format as strings
+  const primaryValue = displayText.primary?.join('\n') || '';
+  const secondaryValue = displayText.secondary?.join('\n') || '';
 
   return (
     <div className="w-full rounded">
