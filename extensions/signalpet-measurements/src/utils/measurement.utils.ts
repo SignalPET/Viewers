@@ -1,4 +1,40 @@
 import type { Measurement } from '../types';
+import { backOff } from 'exponential-backoff';
+
+/**
+ * Expected fields for each tool type based on measurement service mappings
+ */
+const EXPECTED_FIELDS_BY_TOOL: Record<string, string[]> = {
+  Length: ['length', 'unit'],
+  PlanarFreehandROI: ['mean', 'stdDev', 'max', 'area', 'areaUnit', 'modalityUnit'],
+  Probe: ['value'],
+  CircleROI: [
+    'mean',
+    'stdDev',
+    'max',
+    'area',
+    'areaUnit',
+    'modalityUnit',
+    'perimeter',
+    'radiusUnit',
+  ],
+  RectangleROI: ['mean', 'stdDev', 'max', 'area', 'areaUnit', 'modalityUnit'],
+  EllipticalROI: ['mean', 'stdDev', 'max', 'area', 'areaUnit', 'modalityUnit'],
+};
+
+/**
+ * Check if cached stats object has all required fields for the tool type
+ */
+const hasAllRequiredFields = (cachedStats: any, toolName: string): boolean => {
+  const expectedFields = EXPECTED_FIELDS_BY_TOOL[toolName];
+  if (!expectedFields) {
+    // If tool type is unknown, just check that it's not empty
+    return Object.keys(cachedStats).length > 0;
+  }
+
+  // Check that all expected fields exist and are not undefined
+  return expectedFields.every(field => cachedStats.hasOwnProperty(field));
+};
 
 /**
  * Utility functions for measurement operations
@@ -104,7 +140,50 @@ export const getCurrentDisplaySetUID = (servicesManager: any): string | undefine
   return viewportGridService.getDisplaySetsUIDsForViewport(activeViewportId)?.[0];
 };
 
-export const getMeasurementCachedStats = (measurement: Measurement): Record<string, any> => {
-  const annotation = window.cornerstoneTools.annotation.state.getAnnotation(measurement.uid);
-  return Object.values(annotation?.data?.cachedStats || {})[0] || {};
+export const getMeasurementCachedStats = async (
+  measurement: Measurement
+): Promise<Record<string, any>> => {
+  // Function to attempt getting annotation data
+  const getAnnotationData = async (): Promise<Record<string, any>> => {
+    const annotation = (window as any).cornerstoneTools?.annotation?.state?.getAnnotation(
+      measurement.uid
+    );
+
+    if (annotation?.data?.cachedStats) {
+      const cachedStats = Object.values(annotation.data.cachedStats)[0];
+      if (cachedStats && typeof cachedStats === 'object' && Object.keys(cachedStats).length > 0) {
+        if (hasAllRequiredFields(cachedStats, measurement.toolName)) {
+          return cachedStats;
+        }
+      }
+    }
+
+    throw new Error('Cached stats not available yet');
+  };
+
+  try {
+    // Use exponential-backoff library with configuration matching our previous implementation
+    const cachedStats = await backOff(getAnnotationData, {
+      numOfAttempts: 5,
+      startingDelay: 50,
+      timeMultiple: 2,
+      maxDelay: 1000,
+      retry: (error, attemptNumber) => {
+        console.log(
+          `[getMeasurementCachedStats] Attempt ${attemptNumber} failed for measurement ${measurement.uid}:`,
+          error.message
+        );
+        return true; // Continue retrying
+      },
+    });
+
+    return cachedStats;
+  } catch (error) {
+    console.warn(
+      '[getMeasurementCachedStats] All retry attempts failed for measurement:',
+      measurement.uid
+    );
+
+    return {};
+  }
 };

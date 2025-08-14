@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import MeasurementNameEditor from './MeasurementNameEditor';
 import MeasurementActions from './MeasurementActions';
 import MeasurementValues from './MeasurementValues';
@@ -54,8 +54,42 @@ const MeasurementItem = ({
     setIsDeleteDialogOpen(false);
   };
 
-  const displayText = useMemo(() => {
-    return getRealDisplayText(measurement);
+  const [displayText, setDisplayText] = useState<{
+    primary: string[];
+    secondary: string[];
+  }>({
+    primary: ['Loading...'],
+    secondary: [],
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadDisplayText = async () => {
+      try {
+        const result = await getRealDisplayText(measurement);
+        if (isMounted) {
+          setDisplayText({
+            primary: result.primary || ['N/A'],
+            secondary: result.secondary || [],
+          });
+        }
+      } catch (error) {
+        console.error('[MeasurementItem] Error loading display text:', error);
+        if (isMounted) {
+          setDisplayText({
+            primary: ['Error loading data'],
+            secondary: [],
+          });
+        }
+      }
+    };
+
+    loadDisplayText();
+
+    return () => {
+      isMounted = false;
+    };
   }, [measurement]);
 
   // Use the visibility state from the local measurement data

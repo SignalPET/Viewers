@@ -1,4 +1,5 @@
 import { Types } from '@ohif/core';
+import { backOff } from 'exponential-backoff';
 import { SRManagementAPI, SRVersion, SRDisplaySet, Measurement } from '../types';
 import { checkTargetImagesReady } from '../utils';
 
@@ -315,53 +316,40 @@ export class SRManagementService implements SRManagementAPI {
    * Uses exponential backoff to retry until the target image is loaded
    */
   private async hydrateWithImageLoadRetry(srDisplaySet: SRDisplaySet): Promise<void> {
-    const maxRetries = 10;
-    const baseDelay = 100; // Start with 100ms
-    const maxDelay = 3000; // Cap at 3 seconds
+    const attemptHydration = async (): Promise<void> => {
+      // Check if the target image(s) for this SR are loaded
+      const areImagesLoaded = await this.checkIfTargetImagesAreLoaded(srDisplaySet);
 
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        // Check if the target image(s) for this SR are loaded
-        const areImagesLoaded = await this.checkIfTargetImagesAreLoaded(srDisplaySet);
-
-        if (areImagesLoaded) {
-          console.log(
-            `[SRManagement] Target images are loaded, hydrating SR (attempt ${attempt + 1})`
-          );
-          const result = await this.commandsManager.runCommand('hydrateStructuredReport', {
-            displaySetInstanceUID: srDisplaySet.displaySetInstanceUID,
-          });
-          console.log('[SRManagement] SR hydrated successfully:', result);
-          return;
-        }
-
-        // Calculate delay with exponential backoff
-        const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
-        console.log(
-          `[SRManagement] Target images not loaded yet, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`
-        );
-
-        await this.delay(delay);
-      } catch (error) {
-        console.error(`[SRManagement] Error during hydration attempt ${attempt + 1}:`, error);
-
-        // If this is the last attempt, throw the error
-        if (attempt === maxRetries - 1) {
-          throw error;
-        }
-
-        // Otherwise, wait and retry
-        const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
-        await this.delay(delay);
+      if (!areImagesLoaded) {
+        throw new Error('Target images not loaded yet');
       }
-    }
 
-    // If we get here, we've exhausted all retries
-    console.warn('[SRManagement] Failed to hydrate SR after maximum retries - proceeding anyway');
-    const result = await this.commandsManager.runCommand('hydrateStructuredReport', {
-      displaySetInstanceUID: srDisplaySet.displaySetInstanceUID,
-    });
-    console.log('[SRManagement] SR hydrated successfully after max retries:', result);
+      console.log('[SRManagement] Target images are loaded, hydrating SR');
+      const result = await this.commandsManager.runCommand('hydrateStructuredReport', {
+        displaySetInstanceUID: srDisplaySet.displaySetInstanceUID,
+      });
+      console.log('[SRManagement] SR hydrated successfully:', result);
+    };
+
+    try {
+      await backOff(attemptHydration, {
+        numOfAttempts: 10,
+        startingDelay: 100,
+        timeMultiple: 2,
+        maxDelay: 3000,
+        retry: (error, attemptNumber) => {
+          console.log(`[SRManagement] Hydration attempt ${attemptNumber} failed: ${error.message}`);
+          return true; // Continue retrying
+        },
+      });
+    } catch (error) {
+      // If all retries failed, try one final time without checking images
+      console.warn('[SRManagement] Failed to hydrate SR after maximum retries - proceeding anyway');
+      const result = await this.commandsManager.runCommand('hydrateStructuredReport', {
+        displaySetInstanceUID: srDisplaySet.displaySetInstanceUID,
+      });
+      console.log('[SRManagement] SR hydrated successfully after max retries:', result);
+    }
   }
 
   /**

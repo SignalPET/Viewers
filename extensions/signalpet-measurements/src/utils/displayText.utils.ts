@@ -1,43 +1,46 @@
 import { Measurement, MeasurementDisplayText } from '../types';
 import { getMeasurementCachedStats } from './measurement.utils';
 
-export const getRealDisplayText = (measurement: Measurement): MeasurementDisplayText => {
-  const cachedStats = getMeasurementCachedStats(measurement);
+// Helper function to safely format numeric values that might be strings
+const formatNumber = (value: any, decimals: number = 2): string => {
+  if (value === null || value === undefined) return 'N/A';
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  return isNaN(num) ? 'N/A' : num.toFixed(decimals);
+};
+
+export const getRealDisplayText = async (
+  measurement: Measurement
+): Promise<MeasurementDisplayText> => {
+  const cachedStats = await getMeasurementCachedStats(measurement);
   const toolName = measurement.toolName;
   switch (toolName) {
     case 'Length':
       return {
-        primary: [`${cachedStats.length?.toFixed(2)} ${cachedStats.unit}`],
+        primary: [`${formatNumber(cachedStats?.length)} ${cachedStats?.unit || ''}`],
       };
     case 'PlanarFreehandROI':
       return {
-        primary: [`${cachedStats.length?.toFixed(2)} ${cachedStats.unit}`],
+        primary: [`${formatNumber(cachedStats?.length)} ${cachedStats?.unit || ''}`],
       };
     case 'Probe':
       return {
-        primary: [`${cachedStats.index?.join(', ') || 'N/A'}`],
-        secondary: [`${cachedStats.value} ${cachedStats.modalityUnit || ''}`],
+        primary: [`${cachedStats?.index?.join(', ') || 'N/A'}`],
+        secondary: [`${formatNumber(cachedStats?.value)} ${cachedStats?.modalityUnit || ''}`],
       };
     case 'CircleROI':
       return {
-        primary: [`${cachedStats.area?.toFixed(2) || 'N/A'} ${cachedStats.areaUnit || ''}`],
-        secondary: [
-          `Mean: ${cachedStats.mean?.toFixed(2) || 'N/A'} ${cachedStats.modalityUnit || ''}`,
-        ],
+        primary: [`${formatNumber(cachedStats?.area)} ${cachedStats?.areaUnit || ''}`],
+        secondary: [`Mean: ${formatNumber(cachedStats?.mean)} ${cachedStats?.modalityUnit || ''}`],
       };
     case 'RectangleROI':
       return {
-        primary: [`${cachedStats.area?.toFixed(2) || 'N/A'} ${cachedStats.areaUnit || ''}`],
-        secondary: [
-          `Mean: ${cachedStats.mean?.toFixed(2) || 'N/A'} ${cachedStats.modalityUnit || ''}`,
-        ],
+        primary: [`${formatNumber(cachedStats?.area)} ${cachedStats?.areaUnit || ''}`],
+        secondary: [`Mean: ${formatNumber(cachedStats?.mean)} ${cachedStats?.modalityUnit || ''}`],
       };
     case 'EllipticalROI':
       return {
-        primary: [`${cachedStats.area?.toFixed(2) || 'N/A'} ${cachedStats.areaUnit || ''}`],
-        secondary: [
-          `Mean: ${cachedStats.mean?.toFixed(2) || 'N/A'} ${cachedStats.modalityUnit || ''}`,
-        ],
+        primary: [`${formatNumber(cachedStats?.area)} ${cachedStats?.areaUnit || ''}`],
+        secondary: [`Mean: ${formatNumber(cachedStats?.mean)} ${cachedStats?.modalityUnit || ''}`],
       };
     default:
       return {
