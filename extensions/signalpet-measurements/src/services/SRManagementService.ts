@@ -275,7 +275,7 @@ export class SRManagementService implements SRManagementAPI {
     const naturalizedReport = await this.commandsManager.runCommand('storeMeasurements', {
       measurementData: measurements,
       dataSource: dataSource,
-      additionalFindingTypes: [],
+      additionalFindingTypes: ['ArrowAnnotate'], // Follow OHIF pattern for finding types
       options: {
         description: srDescription,
         SeriesDescription: srDescription,

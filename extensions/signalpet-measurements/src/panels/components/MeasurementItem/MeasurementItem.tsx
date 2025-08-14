@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useMeasurements as useMeasurementsDisplayText } from '@ohif/extension-cornerstone';
 import MeasurementNameEditor from './MeasurementNameEditor';
 import MeasurementActions from './MeasurementActions';
 import MeasurementValues from './MeasurementValues';
@@ -15,6 +16,14 @@ const MeasurementItem = ({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const isEditing = editingMeasurement === measurement.uid;
   const defaultName = `Measurement ${index + 1}`;
+
+  // Use OHIF's cornerstone hook to get measurements with processed displayText for UI rendering
+  const allDisplayMeasurements = useMeasurementsDisplayText();
+
+  // Find the display-processed version of this specific measurement
+  const mappedMeasurement = useMemo(() => {
+    return allDisplayMeasurements.find(m => m.uid === measurement.uid) || measurement;
+  }, [allDisplayMeasurements, measurement]);
 
   const handleClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -56,6 +65,10 @@ const MeasurementItem = ({
   // Use the visibility state from the local measurement data
   const isCurrentlyVisible = measurement.isVisible !== false;
 
+  // Extract display values from the OHIF-mapped measurement
+  const primaryValue = mappedMeasurement.displayText?.primary?.join('').trim() || undefined;
+  const secondaryValue = mappedMeasurement.displayText?.secondary?.join('').trim() || undefined;
+
   return (
     <div className="w-full rounded">
       <div
@@ -87,8 +100,8 @@ const MeasurementItem = ({
 
         <MeasurementValues
           toolName={measurement.toolName}
-          primaryValue={measurement.primaryValue}
-          secondaryValue={measurement.secondaryValue}
+          primaryValue={primaryValue}
+          secondaryValue={secondaryValue}
         />
       </div>
 

@@ -52,7 +52,10 @@ export interface Measurement {
   data?: any;
 
   // Text and display
-  displayText?: string;
+  displayText?: {
+    primary?: string[];
+    secondary?: string[];
+  };
   textBox?: any;
 
   // State tracking
@@ -65,9 +68,7 @@ export interface Measurement {
   // Report generation
   getReport?: () => any;
 
-  // Additional legacy fields for compatibility
-  primaryValue?: string;
-  secondaryValue?: string;
+  // Additional fields
   sequenceNumber?: number;
   rawData?: any;
 }
