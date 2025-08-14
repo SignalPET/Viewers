@@ -3,7 +3,6 @@ import MeasurementNameEditor from './MeasurementNameEditor';
 import MeasurementActions from './MeasurementActions';
 import MeasurementValues from './MeasurementValues';
 import DeleteAnnotationDialog from '../DeleteAnnotationDialog';
-import { extractDisplayText } from '../../../utils';
 import type { Measurement } from '../../../types';
 
 const MeasurementItem = ({
@@ -16,11 +15,6 @@ const MeasurementItem = ({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const isEditing = editingMeasurement === measurement.uid;
   const defaultName = `Measurement ${index + 1}`;
-
-  // Extract display values using our custom function
-  const displayText = useMemo(() => {
-    return extractDisplayText(measurement);
-  }, [measurement]);
 
   const handleClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -63,8 +57,8 @@ const MeasurementItem = ({
   const isCurrentlyVisible = measurement.isVisible !== false;
 
   // Extract display values from our custom extraction and format as strings
-  const primaryValue = displayText.primary?.join('\n') || '';
-  const secondaryValue = displayText.secondary?.join('\n') || '';
+  const primaryValue = measurement.displayText.primary?.join('\n') || '';
+  const secondaryValue = measurement.displayText.secondary?.join('\n') || '';
 
   return (
     <div className="w-full rounded">
