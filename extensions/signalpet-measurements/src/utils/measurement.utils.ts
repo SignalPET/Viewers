@@ -103,3 +103,8 @@ export const getCurrentDisplaySetUID = (servicesManager: any): string | undefine
   const activeViewportId = viewportGridService.getActiveViewportId();
   return viewportGridService.getDisplaySetsUIDsForViewport(activeViewportId)?.[0];
 };
+
+export const getMeasurementCachedStats = (measurement: Measurement): Record<string, any> => {
+  const annotation = window.cornerstoneTools.annotation.state.getAnnotation(measurement.uid);
+  return Object.values(annotation?.data?.cachedStats || {})[0] || {};
+};

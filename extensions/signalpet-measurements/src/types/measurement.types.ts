@@ -52,10 +52,7 @@ export interface Measurement {
   data?: any;
 
   // Text and display
-  displayText?: {
-    primary?: string[];
-    secondary?: string[];
-  };
+  displayText?: MeasurementDisplayText;
   textBox?: any;
 
   // State tracking
@@ -77,3 +74,8 @@ export interface Measurement {
  * Filter function type for measurements
  */
 export type MeasurementFilter = (measurement: Measurement) => boolean;
+
+export type MeasurementDisplayText = {
+  primary?: string[];
+  secondary?: string[];
+};

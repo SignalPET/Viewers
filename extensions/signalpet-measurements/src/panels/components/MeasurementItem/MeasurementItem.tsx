@@ -4,6 +4,7 @@ import MeasurementActions from './MeasurementActions';
 import MeasurementValues from './MeasurementValues';
 import DeleteAnnotationDialog from '../DeleteAnnotationDialog';
 import type { Measurement } from '../../../types';
+import { getRealDisplayText } from '../../../utils';
 
 const MeasurementItem = ({
   measurement,
@@ -53,12 +54,16 @@ const MeasurementItem = ({
     setIsDeleteDialogOpen(false);
   };
 
+  const displayText = useMemo(() => {
+    return getRealDisplayText(measurement);
+  }, [measurement]);
+
   // Use the visibility state from the local measurement data
   const isCurrentlyVisible = measurement.isVisible !== false;
 
   // Extract display values from our custom extraction and format as strings
-  const primaryValue = measurement.displayText.primary?.join('\n') || '';
-  const secondaryValue = measurement.displayText.secondary?.join('\n') || '';
+  const primaryValue = displayText.primary?.join('\n') || '';
+  const secondaryValue = displayText.secondary?.join('\n') || '';
 
   return (
     <div className="w-full rounded">
