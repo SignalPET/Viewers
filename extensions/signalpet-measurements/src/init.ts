@@ -220,12 +220,13 @@ export function addPanelToLongitudinalMode(servicesManager: AppTypes.ServicesMan
     // Define the desired panel configuration
     const leftPanelIds = currentLeftPanels.map(p => p.id); // Keep existing left panels
 
-    // For right panels: keep segmentation panel but replace measurement tracking with ours
+    // For right panels: exclude both segmentation and measurement tracking panels
     const rightPanelIds = currentRightPanels
       .filter(
         panel =>
-          // Keep segmentation panel, exclude measurement tracking panel
-          panel.id === '@ohif/extension-cornerstone.panelModule.panelSegmentation'
+          // Exclude both segmentation and measurement tracking panels
+          panel.id !== '@ohif/extension-cornerstone.panelModule.panelSegmentation' &&
+          panel.id !== '@ohif/extension-measurement-tracking.panelModule.trackedMeasurements'
       )
       .map(p => p.id);
 
