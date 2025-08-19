@@ -4,7 +4,7 @@ import commandsModule from './commandsModule';
 import panelModule from './panelModule';
 
 const init = require('./init').default;
-const { addPanelToLongitudinalMode } = require('./init');
+const { setupPanelCustomization } = require('./init');
 
 /**
  * SignalPET Measurements Extension
@@ -46,10 +46,8 @@ const signalPetMeasurementsExtension: Types.Extensions.Extension = {
     // Initialize the extension functionality
     init({ servicesManager, commandsManager, extensionManager, appConfig });
 
-    // Add panel to longitudinal mode with a small delay to ensure layout is initialized
-    setTimeout(() => {
-      addPanelToLongitudinalMode(servicesManager);
-    }, 100);
+    // Set up panel customization that waits for proper timing
+    setupPanelCustomization(servicesManager);
   },
 
   /**

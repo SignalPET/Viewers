@@ -60,6 +60,12 @@ export const useSRVersions = ({
       handleGridStateChange
     );
 
+    // Listen for active viewport changes (when user focuses on different viewport)
+    const activeViewportSubscription = viewportGridService.subscribe(
+      viewportGridService.EVENTS.ACTIVE_VIEWPORT_ID_CHANGED,
+      handleGridStateChange
+    );
+
     // Listen for new displaySets being added (including newly saved SRs)
     const displaySetSubscription = displaySetService.subscribe(
       displaySetService.EVENTS.DISPLAY_SETS_ADDED,
@@ -71,6 +77,7 @@ export const useSRVersions = ({
 
     return () => {
       gridSubscription.unsubscribe();
+      activeViewportSubscription.unsubscribe();
       displaySetSubscription.unsubscribe();
     };
   }, [servicesManager]);
