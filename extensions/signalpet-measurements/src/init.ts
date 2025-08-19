@@ -3,6 +3,7 @@ import { SRManagementService } from './services/SRManagementService';
 
 let viewportsReadySubscription = null;
 let gridStateSubscription = null;
+let activeViewportSubscription = null;
 let isInitialized = false;
 
 /**
@@ -80,6 +81,10 @@ export default async function init({
       gridStateSubscription.unsubscribe();
       gridStateSubscription = null;
     }
+    if (activeViewportSubscription) {
+      activeViewportSubscription.unsubscribe();
+      activeViewportSubscription = null;
+    }
   }
 
   console.log('[SignalPET Measurements] Initializing extension...');
@@ -99,6 +104,21 @@ export default async function init({
     );
   };
 
+  // Function to set up active viewport subscription (only called after viewport is ready)
+  const setupActiveViewportSubscription = () => {
+    if (activeViewportSubscription) {
+      return; // Already set up
+    }
+
+    console.log(
+      '[SignalPET Measurements] Setting up active viewport subscription after viewport ready'
+    );
+    activeViewportSubscription = viewportGridService.subscribe(
+      viewportGridService.EVENTS.ACTIVE_VIEWPORT_ID_CHANGED,
+      handleActiveViewportChange
+    );
+  };
+
   // Function to handle grid state changes (when user switches images)
   const handleGridStateChange = () => {
     const activeViewportId = viewportGridService.getActiveViewportId();
@@ -114,11 +134,25 @@ export default async function init({
     }
   };
 
+  // Function to handle active viewport changes (when user focuses on different viewport)
+  const handleActiveViewportChange = ({ viewportId }) => {
+    const displaySetInstanceUID =
+      viewportGridService.getDisplaySetsUIDsForViewport(viewportId)?.[0];
+
+    if (displaySetInstanceUID) {
+      console.log(
+        '[SignalPET Measurements] Active viewport changed to:',
+        viewportId,
+        'auto-loading SR for image:',
+        displaySetInstanceUID
+      );
+      autoLoadLatestSRForCurrentImage(servicesManager, commandsManager, extensionManager);
+    }
+  };
+
   // Function to handle when viewports are ready (replaces manual readiness checking)
   const handleViewportsReady = () => {
-    console.log(
-      '[SignalPET Measurements] Viewports are ready - setting up grid state subscription'
-    );
+    console.log('[SignalPET Measurements] Viewports are ready - setting up subscriptions');
 
     // Load SR for the current active viewport
     const activeViewportId = viewportGridService.getActiveViewportId();
@@ -136,8 +170,9 @@ export default async function init({
       }
     }
 
-    // Set up grid state subscription now that viewports are ready
+    // Set up both subscriptions now that viewports are ready
     setupGridStateSubscription();
+    setupActiveViewportSubscription();
   };
 
   // Listen for viewports ready event (initial setup)

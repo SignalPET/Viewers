@@ -258,7 +258,7 @@ export class SRManagementService implements SRManagementAPI {
     const studyInstanceUID = imageDisplaySet?.StudyInstanceUID;
 
     // Get SignalPETStudyID - you can modify this logic to get it from wherever you store it
-    const signalPETStudyID = this.getSignalPETStudyID(imageDisplaySet);
+    const signalPETStudyID = this.getSignalPETStudyID();
     const request = new XMLHttpRequest();
 
     // Build the STOW URL with SignalPETStudyID query parameter
@@ -295,7 +295,7 @@ export class SRManagementService implements SRManagementAPI {
   /**
    * Get the SignalPETStudyID - modify this method to retrieve it from your data source
    */
-  private getSignalPETStudyID(imageDisplaySet: any): string {
+  private getSignalPETStudyID(): string {
     return new URLSearchParams(window.location.search).get('SignalPETStudyID') || '';
   }
 
@@ -418,9 +418,5 @@ export class SRManagementService implements SRManagementAPI {
       // If dates and times are same, compare SeriesNumber
       return (b.SeriesNumber || 0) - (a.SeriesNumber || 0);
     });
-  }
-
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
