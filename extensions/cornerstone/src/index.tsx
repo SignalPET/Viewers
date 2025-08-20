@@ -139,13 +139,6 @@ const cornerstoneExtension: Types.Extensions.Extension = {
           quality: 1,
         },
         {
-          id: 'q10',
-          retrieveType: 'q10',
-          priority: 2,
-          requestType: RequestType.Prefetch,
-          quality: 10,
-        },
-        {
           id: 'q30',
           retrieveType: 'q30',
           priority: 3,
@@ -171,19 +164,13 @@ const cornerstoneExtension: Types.Extensions.Extension = {
         q1: {
           framesPath: '/frames-rendered/',
           urlArguments: 'quality=1',
-          imageQualityStatus: cs3DEnums.ImageQualityStatus.LOSSY,
-          streaming: false,
-        },
-        q10: {
-          framesPath: '/frames-rendered/',
-          urlArguments: 'quality=10',
-          imageQualityStatus: cs3DEnums.ImageQualityStatus.LOSSY,
+          imageQualityStatus: cs3DEnums.ImageQualityStatus.SUBRESOLUTION,
           streaming: false,
         },
         q30: {
           framesPath: '/frames-rendered/',
           urlArguments: 'quality=30',
-          imageQualityStatus: cs3DEnums.ImageQualityStatus.LOSSY,
+          imageQualityStatus: cs3DEnums.ImageQualityStatus.SUBRESOLUTION,
           streaming: false,
         },
         q60: {
@@ -199,6 +186,16 @@ const cornerstoneExtension: Types.Extensions.Extension = {
           streaming: false,
           decodeLevel: 0,
         },
+
+        // Important! This is used by stack-context-prefetch, to download frames before the video is played.
+        // This is extremely important for MRI performance, since we want to download everything ahead of time.
+        default: {
+          imageQualityStatus: cs3DEnums.ImageQualityStatus.FULL_RESOLUTION,
+          framesPath: '/frames-rendered/',
+          urlArguments: 'quality=100',
+          streaming: false,
+          decodeLevel: 0,
+        }
       },
     };
 
