@@ -1,64 +1,113 @@
 import { Types } from '@ohif/core';
-import { SRManagementService } from './services/SRManagementService';
+import { SRManagementService, SRSelectionService, type SRSelectionEventData } from './services';
 
 let viewportsReadySubscription = null;
 let gridStateSubscription = null;
-let activeViewportSubscription = null;
-let isInitialized = false;
 
-/**
- * Attempts to automatically load the latest SR for the current image using SRManagementService
- */
-async function autoLoadLatestSRForCurrentImage(
+let layoutChangeSubscription = null;
+let srSelectionSubscription = null;
+let isInitialized = false;
+let isAutoLoadingInProgress = false;
+
+async function autoLoadSRsForCurrentLayout(
   servicesManager: AppTypes.ServicesManager,
   commandsManager: AppTypes.CommandsManager,
   extensionManager: AppTypes.ExtensionManager
 ) {
+  // Prevent concurrent/duplicate loading
+  if (isAutoLoadingInProgress) {
+    console.log('[SignalPET Measurements] Auto-loading already in progress, skipping...');
+    return;
+  }
+
+  isAutoLoadingInProgress = true;
   try {
+    console.log('[SignalPET Measurements] Auto-loading SRs for current layout...');
+
+    const { viewportGridService, measurementService } = servicesManager.services;
+    const state = viewportGridService.getState();
+
+    // Detect layout type
+    const numViewports = state.layout.numRows * state.layout.numCols;
+    const isMultiImage = numViewports > 1;
+
     console.log(
-      '[SignalPET Measurements] Checking for latest SR to auto-load for current image...'
+      `[SignalPET Measurements] Layout: ${isMultiImage ? 'multi-image' : 'single-image'} (${numViewports} viewports)`
     );
 
-    // Get the current active viewport to determine the active image
-    const { viewportGridService, measurementService } = servicesManager.services;
-    const activeViewportId = viewportGridService.getActiveViewportId();
+    // Get all currently displayed images
+    const allDisplaySets: string[] = [];
+    state.viewports.forEach((viewport: any) => {
+      if (viewport.displaySetInstanceUIDs?.length > 0) {
+        allDisplaySets.push(...viewport.displaySetInstanceUIDs);
+      }
+    });
 
-    if (!activeViewportId) {
-      console.log('[SignalPET Measurements] No active viewport found');
+    // Remove duplicates
+    const uniqueDisplaySets = [...new Set(allDisplaySets)];
+
+    if (uniqueDisplaySets.length === 0) {
+      console.log('[SignalPET Measurements] No display sets found');
       return;
     }
 
-    const displaySetUIDs = viewportGridService.getDisplaySetsUIDsForViewport(activeViewportId);
-    const activeDisplaySetInstanceUID = displaySetUIDs?.[0];
+    console.log(
+      `[SignalPET Measurements] Found ${uniqueDisplaySets.length} unique images:`,
+      uniqueDisplaySets
+    );
 
-    if (!activeDisplaySetInstanceUID) {
-      console.log('[SignalPET Measurements] No active image display set found');
-      return;
-    }
-
-    console.log('[SignalPET Measurements] Active image display set:', activeDisplaySetInstanceUID);
-
-    // Clear existing measurements before loading new ones to prevent duplicates
+    // Clear existing measurements to prevent conflicts
     measurementService.clearMeasurements();
     console.log('[SignalPET Measurements] Cleared existing measurements');
 
     const srService = new SRManagementService(servicesManager, commandsManager, extensionManager);
 
-    const versions = await srService.getSRVersionsForImage(activeDisplaySetInstanceUID);
-    if (versions?.length > 0) {
-      await srService.applySR(versions[0].displaySetInstanceUID);
-      console.log(
-        '[SignalPET Measurements] Successfully auto-loaded SR for image:',
-        versions[0].displaySetInstanceUID
-      );
-    } else {
-      console.log(
-        '[SignalPET Measurements] No SR found for current image:',
-        activeDisplaySetInstanceUID
-      );
+    // Collect all unique SRs for all displayed images
+    const uniqueSRsToLoad = new Set<string>();
+    const imageToSRMapping: { [imageUID: string]: string } = {};
+
+    for (const displaySetInstanceUID of uniqueDisplaySets) {
+      try {
+        const versions = await srService.getSRVersionsForImage(displaySetInstanceUID);
+        if (versions?.length > 0) {
+          const latestSR = versions[0].displaySetInstanceUID;
+          uniqueSRsToLoad.add(latestSR);
+          imageToSRMapping[displaySetInstanceUID] = latestSR;
+          console.log(
+            `[SignalPET Measurements] Found SR for ${displaySetInstanceUID} -> ${latestSR}`
+          );
+        } else {
+          console.log(`[SignalPET Measurements] No SR found for image: ${displaySetInstanceUID}`);
+        }
+      } catch (error) {
+        console.error(
+          `[SignalPET Measurements] ❌ Failed to get SR versions for image ${displaySetInstanceUID}:`,
+          error
+        );
+      }
     }
+
+    // Load each unique SR only once
+    console.log(`[SignalPET Measurements] Loading ${uniqueSRsToLoad.size} unique SRs...`);
+    for (const srDisplaySetInstanceUID of uniqueSRsToLoad) {
+      try {
+        await srService.applySR(srDisplaySetInstanceUID);
+        console.log('[SignalPET Measurements] ✅ Auto-loaded unique SR:', srDisplaySetInstanceUID);
+      } catch (error) {
+        console.error(
+          `[SignalPET Measurements] ❌ Failed to load SR ${srDisplaySetInstanceUID}:`,
+          error
+        );
+      }
+    }
+
+    console.log('[SignalPET Measurements] Image to SR mapping:', imageToSRMapping);
+
+    console.log('[SignalPET Measurements] Auto-loading complete');
   } catch (error) {
     console.error('[SignalPET Measurements] Error during auto-load:', error);
+  } finally {
+    isAutoLoadingInProgress = false;
   }
 }
 
@@ -81,13 +130,24 @@ export default async function init({
       gridStateSubscription.unsubscribe();
       gridStateSubscription = null;
     }
-    if (activeViewportSubscription) {
-      activeViewportSubscription.unsubscribe();
-      activeViewportSubscription = null;
+
+    if (layoutChangeSubscription) {
+      layoutChangeSubscription.unsubscribe();
+      layoutChangeSubscription = null;
+    }
+    if (srSelectionSubscription) {
+      srSelectionSubscription.unsubscribe();
+      srSelectionSubscription = null;
     }
   }
 
   console.log('[SignalPET Measurements] Initializing extension...');
+
+  // Register SRSelectionService as a singleton
+  if (!servicesManager.services.srSelectionService) {
+    console.log('[SignalPET Measurements] Registering SRSelectionService...');
+    servicesManager.registerService(SRSelectionService.REGISTRATION);
+  }
 
   const { viewportGridService } = servicesManager.services;
 
@@ -104,50 +164,112 @@ export default async function init({
     );
   };
 
-  // Function to set up active viewport subscription (only called after viewport is ready)
-  const setupActiveViewportSubscription = () => {
-    if (activeViewportSubscription) {
+  const handleLayoutChange = data => {
+    console.log('[SignalPET Measurements] Layout changed:', data);
+    // Cleanup measurements when layout changes (e.g., 4x1 -> 2x2)
+    try {
+      commandsManager.runCommand('signalpetCleanupMeasurements');
+    } catch (error) {
+      console.error(
+        '[SignalPET Measurements] Failed to cleanup measurements on layout change:',
+        error
+      );
+    }
+
+    // Auto-load SRs for new layout
+    setTimeout(() => {
+      console.log('[SignalPET Measurements] Layout changed, auto-loading SRs...');
+      autoLoadSRsForCurrentLayout(servicesManager, commandsManager, extensionManager);
+    }, 100); // Small delay to ensure layout is fully updated
+  };
+
+  // Function to set up layout change subscription (only called after viewport is ready)
+  const setupLayoutChangeSubscription = () => {
+    if (layoutChangeSubscription) {
       return; // Already set up
     }
 
     console.log(
-      '[SignalPET Measurements] Setting up active viewport subscription after viewport ready'
+      '[SignalPET Measurements] Setting up layout change subscription after viewport ready'
     );
-    activeViewportSubscription = viewportGridService.subscribe(
-      viewportGridService.EVENTS.ACTIVE_VIEWPORT_ID_CHANGED,
-      handleActiveViewportChange
+    layoutChangeSubscription = viewportGridService.subscribe(
+      viewportGridService.EVENTS.LAYOUT_CHANGED,
+      handleLayoutChange
+    );
+  };
+
+  // Function to handle user SR selection events
+  const handleSRSelectionEvent = async (data: SRSelectionEventData) => {
+    console.log('[SignalPET Measurements] User selected SR:', data);
+
+    // Clear measurements for the specific target image (if provided)
+    if (data.targetImageDisplaySetUID) {
+      try {
+        commandsManager.runCommand('signalpetClearMeasurementsForImage', {
+          imageDisplaySetInstanceUID: data.targetImageDisplaySetUID,
+        });
+        console.log(
+          `[SignalPET Measurements] Cleared measurements for target image: ${data.targetImageDisplaySetUID}`
+        );
+      } catch (error) {
+        console.error(
+          '[SignalPET Measurements] Failed to clear measurements for target image:',
+          error
+        );
+      }
+    }
+
+    // Also cleanup measurements for images no longer displayed
+    try {
+      commandsManager.runCommand('signalpetCleanupMeasurements');
+    } catch (error) {
+      console.error(
+        '[SignalPET Measurements] Failed to cleanup measurements on SR selection:',
+        error
+      );
+    }
+
+    // Apply the selected SR
+    try {
+      await commandsManager.runCommand('signalpetApplySR', {
+        displaySetInstanceUID: data.displaySetInstanceUID,
+      });
+      console.log(
+        '[SignalPET Measurements] Successfully applied user-selected SR:',
+        data.displaySetInstanceUID
+      );
+    } catch (error) {
+      console.error('[SignalPET Measurements] Failed to apply user-selected SR:', error);
+    }
+  };
+
+  // Function to set up SR selection event subscription (OHIF-style)
+  const setupSRSelectionSubscription = () => {
+    if (srSelectionSubscription) {
+      return; // Already set up
+    }
+
+    console.log('[SignalPET Measurements] Setting up OHIF-style SR selection subscription');
+    const { srSelectionService } = servicesManager.services;
+    srSelectionSubscription = srSelectionService.subscribe(
+      SRSelectionService.EVENTS.SR_SELECTION_REQUESTED,
+      handleSRSelectionEvent
     );
   };
 
   // Function to handle grid state changes (when user switches images)
   const handleGridStateChange = () => {
-    const activeViewportId = viewportGridService.getActiveViewportId();
-    const displaySetInstanceUID =
-      viewportGridService.getDisplaySetsUIDsForViewport(activeViewportId)?.[0];
-
-    if (displaySetInstanceUID) {
-      console.log(
-        '[SignalPET Measurements] Grid state changed, auto-loading SR for image:',
-        displaySetInstanceUID
-      );
-      autoLoadLatestSRForCurrentImage(servicesManager, commandsManager, extensionManager);
+    // First cleanup measurements for images no longer displayed
+    console.log('[SignalPET Measurements] Grid state changed, cleaning up measurements...');
+    try {
+      commandsManager.runCommand('signalpetCleanupMeasurements');
+    } catch (error) {
+      console.error('[SignalPET Measurements] Failed to cleanup measurements:', error);
     }
-  };
 
-  // Function to handle active viewport changes (when user focuses on different viewport)
-  const handleActiveViewportChange = ({ viewportId }) => {
-    const displaySetInstanceUID =
-      viewportGridService.getDisplaySetsUIDsForViewport(viewportId)?.[0];
-
-    if (displaySetInstanceUID) {
-      console.log(
-        '[SignalPET Measurements] Active viewport changed to:',
-        viewportId,
-        'auto-loading SR for image:',
-        displaySetInstanceUID
-      );
-      autoLoadLatestSRForCurrentImage(servicesManager, commandsManager, extensionManager);
-    }
+    // Auto-load SRs for current layout after grid state change
+    console.log('[SignalPET Measurements] Grid state changed, auto-loading SRs...');
+    autoLoadSRsForCurrentLayout(servicesManager, commandsManager, extensionManager);
   };
 
   // Function to handle when viewports are ready (replaces manual readiness checking)
@@ -162,17 +284,16 @@ export default async function init({
 
       if (displaySetInstanceUID) {
         console.log(
-          '[SignalPET Measurements] Auto-loading SR for ready viewport:',
-          displaySetInstanceUID
+          '[SignalPET Measurements] Viewports ready, auto-loading SRs for current layout...'
         );
-
-        autoLoadLatestSRForCurrentImage(servicesManager, commandsManager, extensionManager);
+        autoLoadSRsForCurrentLayout(servicesManager, commandsManager, extensionManager);
       }
     }
 
-    // Set up both subscriptions now that viewports are ready
+    // Set up all subscriptions now that viewports are ready
     setupGridStateSubscription();
-    setupActiveViewportSubscription();
+    setupLayoutChangeSubscription();
+    setupSRSelectionSubscription();
   };
 
   // Listen for viewports ready event (initial setup)

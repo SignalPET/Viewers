@@ -131,14 +131,130 @@ export class SRManagementService implements SRManagementAPI {
   }
 
   /**
-   * Clear current measurements from the measurement service
+   * Get all currently displayed image display set UIDs from viewport grid
    */
-  clearCurrentMeasurements(): void {
-    const measurements = this.getCurrentMeasurements();
-    measurements.forEach(measurement => {
+  private getCurrentlyDisplayedImageUIDs(): string[] {
+    const { viewportGridService } = this.servicesManager.services;
+    const state = viewportGridService.getState();
+    const displaySetUIDs: string[] = [];
+
+    // Iterate through all viewports to collect display set UIDs
+    for (const [viewportId, viewport] of state.viewports) {
+      const viewportDisplaySetUIDs = viewport.displaySetInstanceUIDs || [];
+      displaySetUIDs.push(...viewportDisplaySetUIDs);
+    }
+
+    // Remove duplicates and filter out SR display sets
+    const uniqueDisplaySetUIDs = [...new Set(displaySetUIDs)];
+    return uniqueDisplaySetUIDs.filter(uid => {
+      const displaySet = this.servicesManager.services.displaySetService.getDisplaySetByUID(uid);
+      return displaySet && displaySet.Modality !== 'SR';
+    });
+  }
+
+  /**
+   * Clear measurements for a specific image (used when switching SR versions)
+   */
+  clearMeasurementsForImage(imageDisplaySetInstanceUID: string): void {
+    const allMeasurements = this.getCurrentMeasurements();
+
+    const measurementsToRemove = allMeasurements.filter(measurement => {
+      // Remove measurements that belong to this specific image
+      const matchesDisplaySet = measurement.displaySetInstanceUID === imageDisplaySetInstanceUID;
+      const matchesImageId = measurement.referencedImageId?.includes(imageDisplaySetInstanceUID);
+
+      // Also check if the measurement's SOPInstanceUID belongs to this display set
+      if (measurement.SOPInstanceUID) {
+        const displaySet = this.servicesManager.services.displaySetService.getDisplaySetByUID(
+          imageDisplaySetInstanceUID
+        );
+        if (displaySet?.instances) {
+          const matchesSOPInstance = displaySet.instances.some(
+            (instance: any) => instance.SOPInstanceUID === measurement.SOPInstanceUID
+          );
+          return matchesDisplaySet || matchesImageId || matchesSOPInstance;
+        }
+      }
+
+      return matchesDisplaySet || matchesImageId;
+    });
+
+    if (measurementsToRemove.length === 0) {
+      console.log(
+        `[SRManagement] No measurements to remove for image: ${imageDisplaySetInstanceUID}`
+      );
+      return;
+    }
+
+    console.log(
+      `[SRManagement] Removing ${measurementsToRemove.length} measurements for image: ${imageDisplaySetInstanceUID}`
+    );
+
+    measurementsToRemove.forEach(measurement => {
       this.servicesManager.services.measurementService.remove(measurement.uid);
     });
-    console.log('[SRManagement] Cleared all current measurements');
+
+    console.log(
+      `[SRManagement] Successfully removed measurements for image: ${imageDisplaySetInstanceUID}`
+    );
+  }
+
+  /**
+   * Clear measurements that are not related to any currently displayed images
+   * This is used to automatically clean up measurements when layout changes
+   */
+  clearMeasurementsNotInCurrentDisplay(): void {
+    const displayedImageUIDs = this.getCurrentlyDisplayedImageUIDs();
+    const allMeasurements = this.getCurrentMeasurements();
+
+    if (displayedImageUIDs.length === 0) {
+      console.log('[SRManagement] No displayed images found, skipping cleanup');
+      return;
+    }
+
+    const measurementsToRemove = allMeasurements.filter(measurement => {
+      // Keep measurements that belong to any currently displayed image
+      const belongsToDisplayedImage = displayedImageUIDs.some(uid => {
+        // Check both displaySetInstanceUID and referencedImageId
+        const matchesDisplaySet = measurement.displaySetInstanceUID === uid;
+        const matchesImageId = measurement.referencedImageId?.includes(uid);
+
+        // Also check if the measurement's SOPInstanceUID belongs to any displayed display set
+        if (measurement.SOPInstanceUID) {
+          const displaySet =
+            this.servicesManager.services.displaySetService.getDisplaySetByUID(uid);
+          if (displaySet?.instances) {
+            const matchesSOPInstance = displaySet.instances.some(
+              (instance: any) => instance.SOPInstanceUID === measurement.SOPInstanceUID
+            );
+            return matchesDisplaySet || matchesImageId || matchesSOPInstance;
+          }
+        }
+
+        return matchesDisplaySet || matchesImageId;
+      });
+
+      // Remove measurements that don't belong to any displayed image
+      return !belongsToDisplayedImage;
+    });
+
+    if (measurementsToRemove.length === 0) {
+      console.log('[SRManagement] No measurements to cleanup');
+      return;
+    }
+
+    measurementsToRemove.forEach(measurement => {
+      console.log(
+        `[SRManagement] Removing measurement ${measurement.uid} (not in current display)`
+      );
+      this.servicesManager.services.measurementService.remove(measurement.uid);
+    });
+
+    console.log(
+      `[SRManagement] Cleaned up ${measurementsToRemove.length} measurements not related to currently displayed images`
+    );
+    console.log(`[SRManagement] Currently displayed image UIDs:`, displayedImageUIDs);
+    console.log(`[SRManagement] Remaining measurements:`, this.getCurrentMeasurements().length);
   }
 
   // Private helper methods
@@ -303,8 +419,8 @@ export class SRManagementService implements SRManagementAPI {
     await srDisplaySet.load();
 
     if (!srDisplaySet.isHydrated) {
-      console.log('[SRManagement] Clearing current measurements before hydrating SR...');
-      this.clearCurrentMeasurements();
+      console.log('[SRManagement] Clearing non-displayed measurements before hydrating SR...');
+      this.clearMeasurementsNotInCurrentDisplay();
 
       console.log('[SRManagement] Hydrating SR with image loading retry...');
       await this.hydrateWithImageLoadRetry(srDisplaySet);

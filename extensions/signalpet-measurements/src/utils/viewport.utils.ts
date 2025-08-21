@@ -196,28 +196,35 @@ export async function checkTargetImagesReady(
       }
     }
 
-    // Check if any of the target images are currently in viewports (more reliable indicator)
-    const activeViewportId = viewportGridService.getActiveViewportId();
-    if (activeViewportId) {
-      const viewportDisplaySetUIDs =
-        viewportGridService.getDisplaySetsUIDsForViewport(activeViewportId);
-      const hasTargetInViewport = targetDisplaySets.some(ds =>
-        viewportDisplaySetUIDs.includes(ds.displaySetInstanceUID)
-      );
+    // Check if any of the target images are currently in ANY viewport (not just active)
+    const gridState = viewportGridService.getState();
+    let targetViewportId = null;
+    let targetDisplaySet = null;
 
-      if (hasTargetInViewport) {
-        // CRITICAL: Check if viewport is properly calibrated to prevent coordinate jumping
-        const calibrationResult = await checkViewportCalibration(activeViewportId, servicesManager);
-
-        return {
-          imagesReady: true,
-          viewportReady: calibrationResult.isReady,
-          reason: calibrationResult.isReady
-            ? 'Target image is in active viewport and properly calibrated'
-            : calibrationResult.reason,
-          targetDisplaySets,
-        };
+    // Find which viewport contains our target image
+    gridState.viewports.forEach((viewport, viewportId) => {
+      if (viewport.displaySetInstanceUIDs?.length > 0) {
+        const matchingDisplaySet = targetDisplaySets.find(ds =>
+          viewport.displaySetInstanceUIDs.includes(ds.displaySetInstanceUID)
+        );
+        if (matchingDisplaySet) {
+          targetViewportId = viewportId;
+          targetDisplaySet = matchingDisplaySet;
+        }
       }
+    });
+
+    if (targetViewportId && targetDisplaySet) {
+      const calibrationResult = await checkViewportCalibration(targetViewportId, servicesManager);
+
+      return {
+        imagesReady: true,
+        viewportReady: calibrationResult.isReady,
+        reason: calibrationResult.isReady
+          ? `Target image ${targetDisplaySet.displaySetInstanceUID} is in viewport ${targetViewportId} and properly calibrated`
+          : `Target image in viewport ${targetViewportId}: ${calibrationResult.reason}`,
+        targetDisplaySets,
+      };
     }
 
     return {

@@ -2,10 +2,11 @@ import React from 'react';
 import { ScrollArea } from '@ohif/ui-next';
 
 // Components
-import { MeasurementHeader, MeasurementsBody, UnsavedAnnotationsDialog } from './components';
+import { MeasurementHeader, UnsavedAnnotationsDialog } from './components';
+import MultiImageMeasurementsBody from './components/MultiImageMeasurementsBody';
 
 // Hooks
-import { useMeasurements, useSRVersions, useUnsavedChanges } from '../hooks';
+import { useUnsavedChanges, useMeasurementsPanel } from '../hooks';
 
 // Utils
 import {
@@ -29,47 +30,38 @@ const SignalPETMeasurementsPanel = ({
     handleUnsavedDialogClose,
   } = useUnsavedChanges();
 
-  // Measurements management
+  // Unified measurements panel management (includes everything)
   const {
-    measurements,
+    images,
+    selectSR,
+    handleMeasurementAction,
+    hideAllMeasurements,
     editingMeasurement,
     setEditingMeasurement,
-    loadMeasurementsFromService,
-    handleMeasurementAction: baseMeasurementAction,
-    hideAllMeasurements,
-  } = useMeasurements({
+    loading: panelLoading,
+    totalMeasurements,
+  } = useMeasurementsPanel({
     servicesManager,
     commandsManager,
     onMeasurementChange: markAsUnsaved,
   });
 
-  // SR versions management
-  const { srVersions, selectedSR, loading, applySR } = useSRVersions({
-    servicesManager,
-    commandsManager,
-    onSRApplied: () => {
-      loadMeasurementsFromService();
-      markAsSaved();
-    },
-  });
-
-  const handleMeasurementAction = (command: string, uid: string, value?: string) => {
+  // Wrapper to track unsaved changes
+  const handleMeasurementActionWithTracking = (command: string, uid: string, value?: string) => {
     // Track changes for commands that modify measurements
     if (shouldMarkAsUnsaved(command)) {
       markAsUnsaved();
     }
 
-    baseMeasurementAction(command, uid, value);
+    handleMeasurementAction(command, uid, value);
   };
 
-  const handleSRSelection = async (sr: any) => {
+  // Unified SR selection handler (works for single or multi-image)
+  const handleSRSelection = (sr: any, imageIndex: number = 0) => {
     if (!sr) return;
 
-    try {
-      await applySR(sr);
-    } catch (error) {
-      // Error handling is done in the hook
-    }
+    console.log('[Panel] User selected SR for image', imageIndex);
+    selectSR(imageIndex, sr);
   };
 
   // Handle save measurements with proper error handling
@@ -99,23 +91,21 @@ const SignalPETMeasurementsPanel = ({
         data-cy="signalpet-measurements-panel"
         className="relative min-h-full border-[#0c3b46] border-[0px_1px_1px] bg-[#08252c]"
       >
-        {/* Custom Header */}
+        {/* Header - unified for all layouts */}
         <MeasurementHeader
-          srVersions={srVersions}
-          selectedSR={selectedSR}
-          onSRSelection={handleSRSelection}
           onSaveMeasurements={handleSaveMeasurements}
-          loading={loading}
-          measurementCount={measurements.length}
+          loading={panelLoading}
+          measurementCount={totalMeasurements}
           onHideAll={hideAllMeasurements}
         />
 
-        {/* Custom Measurements Body */}
-        <MeasurementsBody
-          measurements={measurements}
-          onAction={handleMeasurementAction}
+        {/* Measurements Body - unified for all layouts */}
+        <MultiImageMeasurementsBody
+          imagesMeasurements={images}
+          onAction={handleMeasurementActionWithTracking}
           editingMeasurement={editingMeasurement}
           setEditingMeasurement={setEditingMeasurement}
+          onSRSelection={(imageIndex, sr) => handleSRSelection(sr, imageIndex)}
         />
       </div>
 
@@ -125,7 +115,7 @@ const SignalPETMeasurementsPanel = ({
           onClose={handleUnsavedDialogClose}
           onSave={handleDialogSave}
           onLeaveWithoutSaving={handleUnsavedDialogLeave}
-          loading={loading}
+          loading={panelLoading}
         />
       )}
     </ScrollArea>

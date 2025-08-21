@@ -33,5 +33,5 @@ export interface SRManagementAPI {
 
   // Utility methods
   getCurrentMeasurements(): any[];
-  clearCurrentMeasurements(): void;
+  clearMeasurementsNotInCurrentDisplay(): void;
 }

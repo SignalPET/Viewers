@@ -59,11 +59,23 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }) 
     },
 
     /**
-     * Clear current measurements
-     * Usage: commandsManager.runCommand('signalpetClearCurrentMeasurements')
+     * Clear measurements for images not currently displayed
+     * Usage: commandsManager.runCommand('signalpetCleanupMeasurements')
      */
-    signalpetClearCurrentMeasurements: (): void => {
-      return srManagementService.clearCurrentMeasurements();
+    signalpetCleanupMeasurements: (): void => {
+      return srManagementService.clearMeasurementsNotInCurrentDisplay();
+    },
+
+    /**
+     * Clear measurements for a specific image (used when switching SR versions)
+     * Usage: commandsManager.runCommand('signalpetClearMeasurementsForImage', { imageDisplaySetInstanceUID: 'uid123' })
+     */
+    signalpetClearMeasurementsForImage: ({
+      imageDisplaySetInstanceUID,
+    }: {
+      imageDisplaySetInstanceUID: string;
+    }): void => {
+      return srManagementService.clearMeasurementsForImage(imageDisplaySetInstanceUID);
     },
 
     /**
@@ -88,8 +100,11 @@ const commandsModule = ({ servicesManager, commandsManager, extensionManager }) 
     signalpetGetCurrentMeasurements: {
       commandFn: actions.signalpetGetCurrentMeasurements,
     },
-    signalpetClearCurrentMeasurements: {
-      commandFn: actions.signalpetClearCurrentMeasurements,
+    signalpetCleanupMeasurements: {
+      commandFn: actions.signalpetCleanupMeasurements,
+    },
+    signalpetClearMeasurementsForImage: {
+      commandFn: actions.signalpetClearMeasurementsForImage,
     },
     signalpetGetSRService: {
       commandFn: actions.signalpetGetSRService,

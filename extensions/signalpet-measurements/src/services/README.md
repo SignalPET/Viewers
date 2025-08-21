@@ -12,7 +12,7 @@ Main service for managing structured reports, including saving, loading, and app
 - `applySR(displaySetInstanceUID)`: Apply an existing SR
 - `getSRVersionsForImage(imageDisplaySetInstanceUID)`: Get all SR versions for an image
 - `getCurrentMeasurements()`: Get current measurements
-- `clearCurrentMeasurements()`: Clear all current measurements
+- `clearMeasurementsNotInCurrentDisplay()`: Clear measurements for images not currently displayed
 
 ### Custom Storage Implementation
 
