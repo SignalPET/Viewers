@@ -66,88 +66,36 @@ export const showMeasurementNotification = (
 };
 
 /**
- * Handles save measurements operation with proper error handling and notifications
+ * Gets measurements for a specific display set
  */
-export const saveMeasurementsWithNotification = async (
+export const getMeasurementsForDisplaySet = (
   measurementService: any,
-  commandsManager: any,
-  uiNotificationService: any,
   displaySetInstanceUID: string
-): Promise<void> => {
-  return await saveMeasurements(
-    measurementService,
-    commandsManager,
-    uiNotificationService,
-    displaySetInstanceUID,
-    true
+): Measurement[] => {
+  const allMeasurements = measurementService.getMeasurements();
+  return allMeasurements.filter(
+    (measurement: Measurement) =>
+      measurement.displaySetInstanceUID === displaySetInstanceUID ||
+      measurement.referencedImageId?.includes(displaySetInstanceUID)
   );
 };
 
 /**
- * Handles save measurements operation with optional notifications (for bulk operations)
+ * Pure save function - saves measurements for a specific image
+ * Note: signalpetSaveSR command handles filtering measurements by imageDisplaySetInstanceUID
  */
-export const saveMeasurements = async (
-  measurementService: any,
+export const saveSRForImage = async (
   commandsManager: any,
-  uiNotificationService: any,
-  displaySetInstanceUID: string,
-  showNotifications: boolean = true
+  displaySetInstanceUID: string
 ): Promise<void> => {
-  const currentMeasurements = measurementService.getMeasurements();
-
-  if (!validateMeasurements(currentMeasurements)) {
-    if (showNotifications) {
-      showMeasurementNotification(
-        uiNotificationService,
-        'warning',
-        'No Measurements',
-        'No measurements to save. Please create some measurements first.'
-      );
-    }
-    throw new Error('No measurements to save');
-  }
-
   if (!displaySetInstanceUID) {
-    if (showNotifications) {
-      showMeasurementNotification(
-        uiNotificationService,
-        'error',
-        'Save Failed',
-        'No active viewport found'
-      );
-    }
-    throw new Error('No active viewport found');
+    throw new Error('No displaySetInstanceUID provided');
   }
 
-  try {
-    // Use the proper SignalPET save command with current image display set UID
-    await commandsManager.runCommand('signalpetSaveSR', {
-      imageDisplaySetInstanceUID: displaySetInstanceUID,
-    });
-
-    // Show success message only if requested
-    if (showNotifications) {
-      showMeasurementNotification(
-        uiNotificationService,
-        'success',
-        'SR Saved Successfully',
-        `Successfully saved ${currentMeasurements.length} measurements`
-      );
-    }
-  } catch (error) {
-    console.error('[Measurement Utils] Failed to save SR:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    if (showNotifications) {
-      showMeasurementNotification(
-        uiNotificationService,
-        'error',
-        'Save Failed',
-        `Failed to save measurements as SR: ${errorMessage}`,
-        5000
-      );
-    }
-    throw error;
-  }
+  // signalpetSaveSR command handles the filtering and validation
+  await commandsManager.runCommand('signalpetSaveSR', {
+    imageDisplaySetInstanceUID: displaySetInstanceUID,
+  });
 };
 
 /**

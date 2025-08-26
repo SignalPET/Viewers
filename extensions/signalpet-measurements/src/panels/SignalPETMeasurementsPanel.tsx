@@ -10,10 +10,10 @@ import { useUnsavedChanges, useMeasurementsPanel } from '../hooks';
 
 // Utils
 import {
-  saveMeasurementsWithNotification,
-  saveMeasurements,
+  saveSRForImage,
   shouldMarkAsUnsaved,
-  getCurrentDisplaySetUID,
+  showMeasurementNotification,
+  getMeasurementsForDisplaySet,
 } from '../utils/measurement.utils';
 
 const SignalPETMeasurementsPanel = ({
@@ -41,7 +41,6 @@ const SignalPETMeasurementsPanel = ({
     setEditingMeasurement,
     loading: panelLoading,
     totalMeasurements,
-    isMultiImageLayout,
   } = useMeasurementsPanel({
     servicesManager,
     commandsManager,
@@ -66,119 +65,101 @@ const SignalPETMeasurementsPanel = ({
     selectSR(imageIndex, sr);
   };
 
-  // Handle save measurements with proper error handling
-  const handleSaveMeasurements = async () => {
-    if (!isMultiImageLayout) {
-      // Single image mode - use existing logic
-      try {
-        await saveMeasurementsWithNotification(
-          servicesManager.services.measurementService,
-          commandsManager,
-          servicesManager.services.uiNotificationService,
-          getCurrentDisplaySetUID(servicesManager)
-        );
-
-        markAsSaved();
-      } catch (error) {
-        // Error handling is done in the utility function
-      }
-    } else {
-      // Multi-image mode - save all images
-      await handleSaveAllImages();
-    }
-  };
-
-  // Handle save all images in multi-image mode
-  const handleSaveAllImages = async () => {
-    if (images.length === 0) {
-      servicesManager.services.uiNotificationService.show({
-        title: 'No Images',
-        message: 'No images found to save measurements for.',
-        type: 'warning',
-        duration: 4000,
-      });
-      return;
-    }
-
-    const totalImages = images.length;
-    let savedCount = 0;
-    let errors: string[] = [];
-
+  // Handle save measurements: imageIndex = save that image, no index = save all
+  const handleSaveMeasurements = async (imageIndex?: number) => {
     try {
-      // Save measurements for each image (without individual notifications)
-      for (const image of images) {
-        try {
-          await saveMeasurements(
-            servicesManager.services.measurementService,
-            commandsManager,
+      if (imageIndex !== undefined) {
+        // Save specific image with individual notification
+        const targetImage = images[imageIndex];
+        if (!targetImage) return;
+
+        // Get count for notification purposes
+        const measurementCount = getMeasurementsForDisplaySet(
+          servicesManager.services.measurementService,
+          targetImage.displaySetInstanceUID
+        ).length;
+
+        await saveSRForImage(commandsManager, targetImage.displaySetInstanceUID);
+
+        showMeasurementNotification(
+          servicesManager.services.uiNotificationService,
+          'success',
+          'Saved',
+          `Saved ${measurementCount} measurements for ${targetImage.displaySetDescription}`
+        );
+      } else {
+        // Save all images with bulk notification
+        const totalImages = images.length;
+        let savedCount = 0;
+        let totalMeasurements = 0;
+
+        for (const image of images) {
+          try {
+            // Get count for notification purposes
+            const measurementCount = getMeasurementsForDisplaySet(
+              servicesManager.services.measurementService,
+              image.displaySetInstanceUID
+            ).length;
+
+            await saveSRForImage(commandsManager, image.displaySetInstanceUID);
+
+            savedCount++;
+            totalMeasurements += measurementCount;
+          } catch (error) {
+            console.error(`Failed to save image ${image.displaySetDescription}:`, error);
+          }
+        }
+
+        // Show appropriate notification for Save All
+        if (savedCount === totalImages) {
+          showMeasurementNotification(
             servicesManager.services.uiNotificationService,
-            image.displaySetInstanceUID,
-            false // Don't show individual notifications
+            'success',
+            'Save All Complete',
+            `Successfully saved ${totalMeasurements} measurements across ${savedCount} images`
           );
-          savedCount++;
-        } catch (error) {
-          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-          errors.push(`${image.displaySetDescription}: ${errorMsg}`);
+        } else if (savedCount > 0) {
+          showMeasurementNotification(
+            servicesManager.services.uiNotificationService,
+            'warning',
+            'Partial Save',
+            `Saved ${savedCount}/${totalImages} images (${totalMeasurements} measurements)`
+          );
+        } else {
+          showMeasurementNotification(
+            servicesManager.services.uiNotificationService,
+            'error',
+            'Save All Failed',
+            'Failed to save any images'
+          );
         }
       }
-
-      // Show overall result
-      if (savedCount === totalImages) {
-        servicesManager.services.uiNotificationService.show({
-          title: 'Save All Complete',
-          message: `Successfully saved measurements for all ${totalImages} images`,
-          type: 'success',
-          duration: 4000,
-        });
-        markAsSaved();
-      } else if (savedCount > 0) {
-        servicesManager.services.uiNotificationService.show({
-          title: 'Partial Save Complete',
-          message: `Saved ${savedCount}/${totalImages} images. ${errors.length} failed.`,
-          type: 'warning',
-          duration: 6000,
-        });
-      } else {
-        servicesManager.services.uiNotificationService.show({
-          title: 'Save All Failed',
-          message: `Failed to save any measurements. First error: ${errors[0] || 'Unknown error'}`,
-          type: 'error',
-          duration: 6000,
-        });
-      }
-    } catch (error) {
-      console.error('[Panel] Failed to save all images:', error);
-      servicesManager.services.uiNotificationService.show({
-        title: 'Save All Failed',
-        message: 'An unexpected error occurred while saving measurements.',
-        type: 'error',
-        duration: 5000,
-      });
-    }
-  };
-
-  // Handle save measurements for individual image
-  const handleSaveImageMeasurements = async (imageIndex: number) => {
-    if (imageIndex >= images.length) return;
-
-    const targetImage = images[imageIndex];
-    try {
-      await saveMeasurementsWithNotification(
-        servicesManager.services.measurementService,
-        commandsManager,
-        servicesManager.services.uiNotificationService,
-        targetImage.displaySetInstanceUID
-      );
-
       markAsSaved();
     } catch (error) {
-      // Error handling is done in the utility function
+      // Handle validation errors (no measurements, etc.)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      if (errorMessage === 'No measurements to save') {
+        showMeasurementNotification(
+          servicesManager.services.uiNotificationService,
+          'warning',
+          'No Measurements',
+          'No measurements to save. Please create some measurements first.'
+        );
+      } else {
+        showMeasurementNotification(
+          servicesManager.services.uiNotificationService,
+          'error',
+          'Save Failed',
+          errorMessage
+        );
+      }
     }
   };
 
   // Unsaved dialog save handler
   const handleDialogSave = async () => {
-    await handleUnsavedDialogSave(handleSaveMeasurements);
+    await handleUnsavedDialogSave(() => handleSaveMeasurements());
   };
 
   return (
@@ -189,11 +170,11 @@ const SignalPETMeasurementsPanel = ({
       >
         {/* Header - unified for all layouts */}
         <MeasurementHeader
-          onSaveMeasurements={handleSaveMeasurements}
+          onSaveMeasurements={() => handleSaveMeasurements()}
           loading={panelLoading}
           measurementCount={totalMeasurements}
           onHideAll={hideAllMeasurements}
-          isMultiImage={isMultiImageLayout}
+          isMultiImage={images.length > 1}
         />
 
         {/* Measurements Body - unified for all layouts */}
@@ -203,7 +184,7 @@ const SignalPETMeasurementsPanel = ({
           editingMeasurement={editingMeasurement}
           setEditingMeasurement={setEditingMeasurement}
           onSRSelection={(imageIndex, sr) => handleSRSelection(sr, imageIndex)}
-          onSaveImage={handleSaveImageMeasurements}
+          onSaveImage={handleSaveMeasurements}
           loading={panelLoading}
         />
       </div>

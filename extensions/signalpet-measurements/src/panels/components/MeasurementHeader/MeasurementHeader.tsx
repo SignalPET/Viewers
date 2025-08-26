@@ -59,7 +59,7 @@ const MeasurementHeader = ({
 };
 
 type MeasurementHeaderProps = {
-  onSaveMeasurements: () => Promise<void>;
+  onSaveMeasurements: (imageIndex?: number) => Promise<void>;
   loading: boolean;
   measurementCount: number;
   onHideAll: () => void;

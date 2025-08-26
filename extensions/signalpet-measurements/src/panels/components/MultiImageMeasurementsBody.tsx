@@ -12,7 +12,7 @@ interface MultiImageMeasurementsBodyProps {
   editingMeasurement: string | null;
   setEditingMeasurement: (uid: string | null) => void;
   onSRSelection: (imageIndex: number, sr: SRVersion) => void;
-  onSaveImage?: (imageIndex: number) => void;
+  onSaveImage?: (imageIndex?: number) => Promise<void>;
   loading?: boolean;
 }
 
@@ -34,7 +34,7 @@ const ImageSection = ({
   setEditingMeasurement: (uid: string | null) => void;
   onSRSelection: (imageIndex: number, sr: SRVersion) => void;
   isSingleImage: boolean;
-  onSaveImage?: (imageIndex: number) => void;
+  onSaveImage?: (imageIndex?: number) => Promise<void>;
   loading?: boolean;
 }) => {
   // Expanded by default in single image mode, collapsed in multi-image mode
@@ -99,17 +99,17 @@ const ImageSection = ({
           </Badge>
           {!isSingleImage && onSaveImage && (
             <Button
-              variant="primary"
+              variant="ghost"
               size="sm"
-              onClick={(e) => {
+              onClick={e => {
                 e.stopPropagation(); // Prevent triggering header collapse
                 onSaveImage(imageIndex);
               }}
               disabled={loading}
-              className="gap-1 text-xs"
+              className="gap-1 border border-[#5fb3d1]/30 px-2 py-1 text-xs text-[#5fb3d1] hover:border-[#5fb3d1] hover:bg-[#0c3b46] hover:text-white"
             >
-              <span>{loading ? 'Saving...' : 'Save Version'}</span>
               <SaveIcon className="h-3 w-3" />
+              <span>{loading ? 'Saving...' : 'Save'}</span>
             </Button>
           )}
         </div>

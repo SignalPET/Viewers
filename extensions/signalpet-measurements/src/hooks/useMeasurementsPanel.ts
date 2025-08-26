@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Measurement, SRVersion } from '../types';
+import { getMeasurementsForDisplaySet } from '../utils/measurement.utils';
 
 /**
  * Unified measurements panel hook - handles single and multi-image layouts seamlessly
  */
 
 export interface ImageData {
-  id: string; // viewport or display set ID
   displaySetInstanceUID: string;
   displaySetDescription: string;
   displaySetLabel: string;
@@ -33,24 +33,16 @@ export const useMeasurementsPanel = ({
 
   const { viewportGridService, displaySetService, measurementService } = servicesManager.services;
 
-  // Detect if we're in multi-image layout
-  const isMultiImageLayout = useMemo(() => {
-    const state = viewportGridService.getState();
-    const numViewports = state.layout.numRows * state.layout.numCols;
-    return numViewports > 1;
-  }, [viewportGridService]);
-
   // Get all currently displayed images
   const getCurrentlyDisplayedImages = useCallback(() => {
     const state = viewportGridService.getState();
     const imageData: Array<{
-      id: string;
       displaySetInstanceUID: string;
       displaySet: any;
     }> = [];
 
     // Collect all displayed images (state.viewports is a Map)
-    state.viewports.forEach((viewport: any, viewportId: string) => {
+    state.viewports.forEach((viewport: any) => {
       if (viewport.displaySetInstanceUIDs?.length > 0) {
         viewport.displaySetInstanceUIDs.forEach((displaySetInstanceUID: string) => {
           // Avoid duplicates
@@ -58,7 +50,6 @@ export const useMeasurementsPanel = ({
             const displaySet = displaySetService.getDisplaySetByUID(displaySetInstanceUID);
             if (displaySet) {
               imageData.push({
-                id: isMultiImageLayout ? viewportId : displaySetInstanceUID,
                 displaySetInstanceUID,
                 displaySet,
               });
@@ -69,20 +60,7 @@ export const useMeasurementsPanel = ({
     });
 
     return imageData;
-  }, [viewportGridService, displaySetService, isMultiImageLayout]);
-
-  // Get measurements for a specific display set
-  const getMeasurementsForDisplaySet = useCallback(
-    (displaySetInstanceUID: string): Measurement[] => {
-      const allMeasurements = measurementService.getMeasurements();
-      return allMeasurements.filter(
-        (measurement: Measurement) =>
-          measurement.displaySetInstanceUID === displaySetInstanceUID ||
-          measurement.referencedImageId?.includes(displaySetInstanceUID)
-      );
-    },
-    [measurementService]
-  );
+  }, [viewportGridService, displaySetService]);
 
   // Get SR versions for a display set
   const getSRVersionsForDisplaySet = useCallback(
@@ -113,29 +91,27 @@ export const useMeasurementsPanel = ({
     setLoading(true);
     try {
       // Load data for all images in parallel
-      const imageDataPromises = currentImages.map(
-        async ({ id, displaySetInstanceUID, displaySet }) => {
-          const measurements = getMeasurementsForDisplaySet(displaySetInstanceUID);
-          const srVersions = await getSRVersionsForDisplaySet(displaySetInstanceUID);
+      const imageDataPromises = currentImages.map(async ({ displaySetInstanceUID, displaySet }) => {
+        const measurements = getMeasurementsForDisplaySet(
+          measurementService,
+          displaySetInstanceUID
+        );
+        const srVersions = await getSRVersionsForDisplaySet(displaySetInstanceUID);
 
-          return {
-            id,
-            displaySetInstanceUID,
-            displaySetDescription:
-              displaySet.SeriesDescription ||
-              displaySet.SeriesNumber?.toString() ||
-              'Unknown Series',
-            displaySetLabel:
-              displaySet.SeriesInstanceUID?.slice(-8) ||
-              displaySetInstanceUID?.slice(-8) ||
-              'Unknown',
-            measurements,
-            srVersions,
-            selectedSR: srVersions.length > 0 ? srVersions[0] : null,
-            loading: false,
-          };
-        }
-      );
+        return {
+          displaySetInstanceUID,
+          displaySetDescription:
+            displaySet.SeriesDescription || displaySet.SeriesNumber?.toString() || 'Unknown Series',
+          displaySetLabel:
+            displaySet.SeriesInstanceUID?.slice(-8) ||
+            displaySetInstanceUID?.slice(-8) ||
+            'Unknown',
+          measurements,
+          srVersions,
+          selectedSR: srVersions.length > 0 ? srVersions[0] : null,
+          loading: false,
+        };
+      });
 
       const imageData = await Promise.all(imageDataPromises);
       setImages(imageData);
@@ -148,9 +124,9 @@ export const useMeasurementsPanel = ({
     }
   }, [
     getCurrentlyDisplayedImages,
-    getMeasurementsForDisplaySet,
     getSRVersionsForDisplaySet,
     viewportGridService,
+    measurementService,
   ]);
 
   // Handle SR selection for any image
@@ -182,12 +158,12 @@ export const useMeasurementsPanel = ({
       srSelectionService.requestSRSelection({
         displaySetInstanceUID: sr.displaySetInstanceUID,
         targetImageDisplaySetUID: targetImage.displaySetInstanceUID,
-        source: isMultiImageLayout ? 'multi-image' : 'single-image',
+        source: images.length > 1 ? 'multi-image' : 'single-image',
       });
 
       console.log('[Measurements Panel] Broadcasted SR selection via OHIF service');
     },
-    [images, servicesManager.services, isMultiImageLayout]
+    [images, servicesManager.services]
   );
 
   // Handle measurement actions - unified for all layouts
@@ -231,12 +207,13 @@ export const useMeasurementsPanel = ({
   useEffect(() => {
     console.log('[Measurements Panel] Setting up subscriptions...');
 
-    // Data update handlers - defined inside useEffect to avoid dependency issues
     const updateMeasurements = () => {
-      // Update measurements inline to avoid circular dependencies
       setImages(prevImages =>
         prevImages.map(imageData => {
-          const measurements = getMeasurementsForDisplaySet(imageData.displaySetInstanceUID);
+          const measurements = getMeasurementsForDisplaySet(
+            measurementService,
+            imageData.displaySetInstanceUID
+          );
           return {
             ...imageData,
             measurements,
@@ -305,9 +282,6 @@ export const useMeasurementsPanel = ({
   }, [loading, images]);
 
   return {
-    // Layout info
-    isMultiImageLayout,
-
     // Data
     images,
 
