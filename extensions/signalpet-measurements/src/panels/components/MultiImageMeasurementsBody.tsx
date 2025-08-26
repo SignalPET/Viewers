@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import MeasurementItem from './MeasurementItem/MeasurementItem';
-import { Badge, Dropdown } from './ui';
+import { Badge, Dropdown, Button } from './ui';
+import { SaveIcon } from './ui/icons';
 import type { Measurement, SRVersion } from '../../types';
 import type { ImageData } from '../../hooks/useMeasurementsPanel';
 import { getSRDisplayName } from '../../utils/sr.utils';
@@ -11,6 +12,8 @@ interface MultiImageMeasurementsBodyProps {
   editingMeasurement: string | null;
   setEditingMeasurement: (uid: string | null) => void;
   onSRSelection: (imageIndex: number, sr: SRVersion) => void;
+  onSaveImage?: (imageIndex: number) => void;
+  loading?: boolean;
 }
 
 const ImageSection = ({
@@ -21,6 +24,8 @@ const ImageSection = ({
   setEditingMeasurement,
   onSRSelection,
   isSingleImage,
+  onSaveImage,
+  loading,
 }: {
   imageData: ImageData;
   imageIndex: number;
@@ -29,6 +34,8 @@ const ImageSection = ({
   setEditingMeasurement: (uid: string | null) => void;
   onSRSelection: (imageIndex: number, sr: SRVersion) => void;
   isSingleImage: boolean;
+  onSaveImage?: (imageIndex: number) => void;
+  loading?: boolean;
 }) => {
   // Expanded by default in single image mode, collapsed in multi-image mode
   const [isExpanded, setIsExpanded] = useState(isSingleImage);
@@ -90,6 +97,21 @@ const ImageSection = ({
           >
             {imageData.measurements.length}
           </Badge>
+          {!isSingleImage && onSaveImage && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent triggering header collapse
+                onSaveImage(imageIndex);
+              }}
+              disabled={loading}
+              className="gap-1 text-xs"
+            >
+              <span>{loading ? 'Saving...' : 'Save Version'}</span>
+              <SaveIcon className="h-3 w-3" />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -151,6 +173,8 @@ const MultiImageMeasurementsBody = ({
   editingMeasurement,
   setEditingMeasurement,
   onSRSelection,
+  onSaveImage,
+  loading,
 }: MultiImageMeasurementsBodyProps) => {
   if (!imagesMeasurements || imagesMeasurements.length === 0) {
     return (
@@ -177,6 +201,8 @@ const MultiImageMeasurementsBody = ({
             setEditingMeasurement={setEditingMeasurement}
             onSRSelection={onSRSelection}
             isSingleImage={isSingleImage}
+            onSaveImage={onSaveImage}
+            loading={loading}
           />
         ))}
       </div>

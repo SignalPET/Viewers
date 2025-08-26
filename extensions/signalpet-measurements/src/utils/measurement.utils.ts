@@ -74,26 +74,49 @@ export const saveMeasurementsWithNotification = async (
   uiNotificationService: any,
   displaySetInstanceUID: string
 ): Promise<void> => {
+  return await saveMeasurements(
+    measurementService,
+    commandsManager,
+    uiNotificationService,
+    displaySetInstanceUID,
+    true
+  );
+};
+
+/**
+ * Handles save measurements operation with optional notifications (for bulk operations)
+ */
+export const saveMeasurements = async (
+  measurementService: any,
+  commandsManager: any,
+  uiNotificationService: any,
+  displaySetInstanceUID: string,
+  showNotifications: boolean = true
+): Promise<void> => {
   const currentMeasurements = measurementService.getMeasurements();
 
   if (!validateMeasurements(currentMeasurements)) {
-    showMeasurementNotification(
-      uiNotificationService,
-      'warning',
-      'No Measurements',
-      'No measurements to save. Please create some measurements first.'
-    );
-    return;
+    if (showNotifications) {
+      showMeasurementNotification(
+        uiNotificationService,
+        'warning',
+        'No Measurements',
+        'No measurements to save. Please create some measurements first.'
+      );
+    }
+    throw new Error('No measurements to save');
   }
 
   if (!displaySetInstanceUID) {
-    showMeasurementNotification(
-      uiNotificationService,
-      'error',
-      'Save Failed',
-      'No active viewport found'
-    );
-    return;
+    if (showNotifications) {
+      showMeasurementNotification(
+        uiNotificationService,
+        'error',
+        'Save Failed',
+        'No active viewport found'
+      );
+    }
+    throw new Error('No active viewport found');
   }
 
   try {
@@ -102,23 +125,27 @@ export const saveMeasurementsWithNotification = async (
       imageDisplaySetInstanceUID: displaySetInstanceUID,
     });
 
-    // Show success message
-    showMeasurementNotification(
-      uiNotificationService,
-      'success',
-      'SR Saved Successfully',
-      `Successfully saved ${currentMeasurements.length} measurements`
-    );
+    // Show success message only if requested
+    if (showNotifications) {
+      showMeasurementNotification(
+        uiNotificationService,
+        'success',
+        'SR Saved Successfully',
+        `Successfully saved ${currentMeasurements.length} measurements`
+      );
+    }
   } catch (error) {
     console.error('[Measurement Utils] Failed to save SR:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    showMeasurementNotification(
-      uiNotificationService,
-      'error',
-      'Save Failed',
-      `Failed to save measurements as SR: ${errorMessage}`,
-      5000
-    );
+    if (showNotifications) {
+      showMeasurementNotification(
+        uiNotificationService,
+        'error',
+        'Save Failed',
+        `Failed to save measurements as SR: ${errorMessage}`,
+        5000
+      );
+    }
     throw error;
   }
 };

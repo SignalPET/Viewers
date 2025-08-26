@@ -3,7 +3,13 @@ import { Button, Badge } from '../ui';
 import { VisibilityOffIcon, SaveIcon } from '../ui/icons';
 import ToolIcon from '../../../utils/toolIcons.utils';
 
-const Toolbar = ({ measurementCount, onHideAll, onSaveMeasurements, loading }: ToolbarProps) => (
+const Toolbar = ({
+  measurementCount,
+  onHideAll,
+  onSaveMeasurements,
+  loading,
+  isMultiImage,
+}: ToolbarProps) => (
   <div className="flex h-9 items-center justify-between border-t border-[#0c3b46] bg-[#08252c] px-2">
     <div className="flex items-center gap-2">
       <Badge>
@@ -33,7 +39,7 @@ const Toolbar = ({ measurementCount, onHideAll, onSaveMeasurements, loading }: T
         disabled={loading}
         className="gap-1"
       >
-        <span>{loading ? 'Saving...' : 'Save Version'}</span>
+        <span>{loading ? 'Saving...' : isMultiImage ? 'Save All' : 'Save Version'}</span>
         <SaveIcon />
       </Button>
     </div>
@@ -45,6 +51,7 @@ type ToolbarProps = {
   onHideAll: () => void;
   onSaveMeasurements: () => void;
   loading: boolean;
+  isMultiImage?: boolean;
 };
 
 export default Toolbar;

@@ -8,6 +8,7 @@ const MeasurementHeader = ({
   loading,
   measurementCount,
   onHideAll,
+  isMultiImage,
 }: MeasurementHeaderProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -42,6 +43,7 @@ const MeasurementHeader = ({
         onHideAll={onHideAll}
         onSaveMeasurements={handleSaveSRClick}
         loading={loading}
+        isMultiImage={isMultiImage}
       />
 
       {/* Save Annotations Dialog */}
@@ -61,6 +63,7 @@ type MeasurementHeaderProps = {
   loading: boolean;
   measurementCount: number;
   onHideAll: () => void;
+  isMultiImage?: boolean;
 };
 
 export default MeasurementHeader;
