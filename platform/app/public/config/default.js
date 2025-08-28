@@ -2,9 +2,13 @@
 /** This isn't necessary in this repo, it's kept here so devs don't have to copy it from the default.js file in the SignalPET repo */
 const instanceFilter = (query, instance) => {
   // 31C51020 is a private SiganlPET tag that stores the StudyID
-  const instanceStudyId = instance["31C51020"]?.Value?.[0];
-  const queryStudyId = parseInt(query.get("SignalPETStudyID"));
-  const historicalStudyIds = query.get("RelatedSignalPETStudyIDs")?.split(",")?.map(id => parseInt(id)) ?? [];
+  const instanceStudyId = instance['31C51020']?.Value?.[0];
+  const queryStudyId = parseInt(query.get('SignalPETStudyID'));
+  const historicalStudyIds =
+    query
+      .get('RelatedSignalPETStudyIDs')
+      ?.split(',')
+      ?.map(id => parseInt(id)) ?? [];
 
   if (isNaN(queryStudyId)) {
     return true;
@@ -17,7 +21,7 @@ const instanceFilter = (query, instance) => {
 window.config = {
   name: 'config/default.js',
   // whiteLabeling: {},
-  extensions: [],
+  extensions: ['@signalpet/extension-signalpet-measurements'],
   modes: [],
   customizationService: [
     {
@@ -264,6 +268,7 @@ window.config = {
       },
     },
   ],
+
   httpErrorHandler: error => {
     // This is 429 when rejected from the public idc sandbox too often.
     console.warn(error.status);

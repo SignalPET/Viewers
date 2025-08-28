@@ -108,6 +108,7 @@ const commandsModule = (props: withAppTypes) => {
       dataSource,
       additionalFindingTypes,
       options = {},
+      request = null,
     }) => {
       // Use the @cornerstonejs adapter for converting to/from DICOM
       // But it is good enough for now whilst we only have cornerstone as a datasource.
@@ -137,7 +138,7 @@ const commandsModule = (props: withAppTypes) => {
           dicomDict = onBeforeDicomStore({ dicomDict, measurementData, naturalizedReport });
         }
 
-        await dataSource.store.dicom(naturalizedReport, null, dicomDict);
+        await dataSource.store.dicom(naturalizedReport, request, dicomDict);
 
         if (StudyInstanceUID) {
           dataSource.deleteStudyMetadataPromise(StudyInstanceUID);
