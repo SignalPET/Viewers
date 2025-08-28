@@ -57,7 +57,7 @@ async function autoLoadSRsForCurrentLayout(
     );
 
     // Clear existing measurements to prevent conflicts
-    measurementService.clearMeasurements();
+    commandsManager.runCommand('signalpetCleanupMeasurements');
     console.log('[SignalPET Measurements] Cleared existing measurements');
 
     const srService = new SRManagementService(servicesManager, commandsManager, extensionManager);
