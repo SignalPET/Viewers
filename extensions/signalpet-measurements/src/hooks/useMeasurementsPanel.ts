@@ -234,6 +234,11 @@ export const useMeasurementsPanel = ({
       updateMeasurements
     );
 
+    const measurementRemovedSubscription = measurementService.subscribe(
+      measurementService.EVENTS.MEASUREMENT_REMOVED,
+      updateMeasurements
+    );
+
     // Display set change subscription
     const displaySetSubscription = displaySetService.subscribe(
       displaySetService.EVENTS.DISPLAY_SETS_ADDED,
@@ -257,6 +262,7 @@ export const useMeasurementsPanel = ({
       gridStateSubscription.unsubscribe();
       displaySetSubscription.unsubscribe();
       measurementSubscription.unsubscribe();
+      measurementRemovedSubscription.unsubscribe();
     };
   }, [viewportGridService, displaySetService, measurementService]);
 
