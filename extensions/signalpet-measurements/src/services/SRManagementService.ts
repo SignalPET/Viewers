@@ -252,10 +252,18 @@ export class SRManagementService implements SRManagementAPI {
       return;
     }
 
+    // Collect image SOPInstanceUIDs from measurements being removed
+    const affectedImageSOPs = new Set<string>();
     measurementsToRemove.forEach(measurement => {
       console.log(
         `[SRManagement] Removing measurement ${measurement.uid} (not in current display)`
       );
+
+      // Track which image SOPs had measurements removed
+      if (measurement.SOPInstanceUID) {
+        affectedImageSOPs.add(measurement.SOPInstanceUID);
+      }
+
       this.servicesManager.services.measurementService.remove(measurement.uid);
     });
 
@@ -264,6 +272,11 @@ export class SRManagementService implements SRManagementAPI {
     );
     console.log(`[SRManagement] Currently displayed image UIDs:`, displayedImageUIDs);
     console.log(`[SRManagement] Remaining measurements:`, this.getCurrentMeasurements().length);
+
+    // Set isLoaded = false for SRs that reference the affected image SOPs
+    if (affectedImageSOPs.size > 0) {
+      this.setSRsNotLoadedByImageSOPs(Array.from(affectedImageSOPs));
+    }
   }
 
   // Private helper methods
@@ -541,5 +554,40 @@ export class SRManagementService implements SRManagementAPI {
       // If dates and times are same, compare SeriesNumber
       return (b.SeriesNumber || 0) - (a.SeriesNumber || 0);
     });
+  }
+
+  /**
+   * Set isLoaded = false for SRs that reference the specified image SOPInstanceUIDs
+   */
+  private setSRsNotLoadedByImageSOPs(imageSOPInstanceUIDs: string[]): void {
+    if (imageSOPInstanceUIDs.length === 0) {
+      return;
+    }
+
+    const allSRDisplaySets = this.getAllSRDisplaySets();
+
+    if (allSRDisplaySets.length === 0) {
+      console.log('[SRManagement] No SR display sets found, skipping SR cleanup');
+      return;
+    }
+
+    console.log(
+      `[SRManagement] Setting isLoaded=false for SRs that reference image SOPs:`,
+      imageSOPInstanceUIDs
+    );
+
+    for (const srDisplaySet of allSRDisplaySets) {
+      // Check if this SR references any of the affected image SOPs
+      const referencesAffectedImages = srDisplaySet.referencedImages?.some(refImage =>
+        imageSOPInstanceUIDs.includes(refImage.ReferencedSOPInstanceUID)
+      );
+
+      if (referencesAffectedImages) {
+        srDisplaySet.isLoaded = false;
+        console.log(
+          `[SRManagement] Set SR ${srDisplaySet.displaySetInstanceUID} isLoaded=false (references affected image SOPs)`
+        );
+      }
+    }
   }
 }
