@@ -1,7 +1,7 @@
 import { Types } from '@ohif/core';
 import { backOff } from 'exponential-backoff';
 import { SRManagementAPI, SRVersion, SRDisplaySet, Measurement } from '../types';
-import { checkTargetImagesReady } from '../utils';
+import { checkTargetImagesReady, getMeasurementsForDisplaySet } from '../utils';
 
 export class SRManagementService implements SRManagementAPI {
   constructor(
@@ -62,10 +62,19 @@ export class SRManagementService implements SRManagementAPI {
       throw new Error('Image display set instance UID is required for saving SR');
     }
 
-    const measurements = this.getCurrentMeasurements();
+    // Filter measurements to only include those for the specific image/display set
+    const measurements = getMeasurementsForDisplaySet(
+      this.servicesManager.services.measurementService,
+      imageDisplaySetInstanceUID
+    );
+
     if (measurements.length === 0) {
-      throw new Error('No measurements to save');
+      throw new Error('No measurements to save for this image');
     }
+
+    console.log(
+      `[SRManagement] Found ${measurements.length} measurements for image ${imageDisplaySetInstanceUID}`
+    );
 
     const dataSource = this.getDataSource();
     const srDescription = this.createSRDescription();
