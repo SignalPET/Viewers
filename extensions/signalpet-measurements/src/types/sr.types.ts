@@ -19,6 +19,10 @@ export interface SRDisplaySet extends Types.DisplaySet {
   load?: () => Promise<void>;
   SOPClassUID?: string;
   SOPClassHandlerId?: string;
+  referencedImages?: {
+    ReferencedSOPInstanceUID: string;
+    ReferencedSOPClassUID: string;
+  }[];
 }
 
 export interface SRManagementAPI {
