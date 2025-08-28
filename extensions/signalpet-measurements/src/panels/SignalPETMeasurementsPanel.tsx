@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ScrollArea } from '@ohif/ui-next';
 
 // Components
@@ -9,6 +9,7 @@ import MultiImageMeasurementsBody from './components/MultiImageMeasurementsBody'
 import { useUnsavedChanges, useMeasurementsPanel } from '../hooks';
 
 // Utils
+import { isOhifMessage, sendDialogResponse } from '../utils/simple-messaging';
 import {
   saveSRForImage,
   showMeasurementNotification,
@@ -32,6 +33,23 @@ const SignalPETMeasurementsPanel = ({
     servicesManager,
     commandsManager,
   });
+
+  // Listen for navigation attempts from parent
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (!isOhifMessage(event.data)) return;
+
+      if (event.data.type === 'OHIF_NAVIGATION_ATTEMPT') {
+        // Parent is trying to navigate and wants us to handle the dialog
+        setShowUnsavedDialog(true);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
 
   // Handle save measurements: imageIndex = save that image, no index = save all
   const handleSaveMeasurements = async (imageIndex?: number) => {
@@ -124,13 +142,7 @@ const SignalPETMeasurementsPanel = ({
     }
   };
 
-  // Simple dialog state management
-  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
-
-  // Unsaved changes management with automatic measurement tracking
-  const { hasUnsavedChanges, markAsUnsaved, markAsSaved } = useUnsavedChanges({
-    servicesManager, // Auto-track measurement changes
-  });
+  // Dialog state management
 
   // Unified SR selection handler (works for single or multi-image)
   const handleSRSelection = (sr: any, imageIndex: number = 0) => {
@@ -140,24 +152,26 @@ const SignalPETMeasurementsPanel = ({
     selectSR(imageIndex, sr);
   };
 
-  // Simple dialog handlers
-  const handleDialogSave = async () => {
+  // Dialog handlers
+  const handleSaveFromDialog = async () => {
     try {
       await handleSaveMeasurements();
-      markAsSaved();
-      setShowUnsavedDialog(false);
+      sendDialogResponse('continue');
     } catch (error) {
       console.error('Failed to save measurements:', error);
     }
   };
 
-  const handleDialogLeave = () => {
-    markAsSaved();
+  const handleDialogLeaveWithoutSaving = () => {
     setShowUnsavedDialog(false);
+
+    // Notify parent that we're discarding changes and they can proceed
+    sendDialogResponse('continue');
   };
 
   const handleDialogClose = () => {
     setShowUnsavedDialog(false);
+    sendDialogResponse('cancel');
   };
 
   return (
@@ -191,8 +205,8 @@ const SignalPETMeasurementsPanel = ({
       {showUnsavedDialog && (
         <UnsavedAnnotationsDialog
           onClose={handleDialogClose}
-          onSave={handleDialogSave}
-          onLeaveWithoutSaving={handleDialogLeave}
+          onSave={handleSaveFromDialog}
+          onLeaveWithoutSaving={handleDialogLeaveWithoutSaving}
           loading={panelLoading}
         />
       )}
