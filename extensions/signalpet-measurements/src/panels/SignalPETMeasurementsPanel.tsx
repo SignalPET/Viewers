@@ -184,8 +184,6 @@ const SignalPETMeasurementsPanel = ({
 
   const handleDialogLeaveWithoutSaving = () => {
     setShowUnsavedDialog(false);
-
-    // Notify parent that we're discarding changes and they can proceed
     sendDialogResponse('continue');
   };
 
