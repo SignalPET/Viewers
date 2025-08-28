@@ -6,7 +6,7 @@ import { MeasurementHeader, UnsavedAnnotationsDialog } from './components';
 import MultiImageMeasurementsBody from './components/MultiImageMeasurementsBody';
 
 // Hooks
-import { useUnsavedChanges, useMeasurementsPanel } from '../hooks';
+import { useMeasurementsPanel } from '../hooks';
 
 // Utils
 import { isOhifMessage, sendDialogResponse } from '../utils/messaging';
