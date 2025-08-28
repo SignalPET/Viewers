@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Measurement, SRVersion } from '../types';
-import { getMeasurementsForDisplaySet } from '../utils/measurement.utils';
+import { getMeasurementsForDisplaySet, getDirtyDisplaySetUIDs } from '../utils/measurement.utils';
 
 /**
  * Unified measurements panel hook - handles single and multi-image layouts seamlessly
@@ -28,6 +28,7 @@ export const useMeasurementsPanel = ({
   const [images, setImages] = useState<ImageData[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingMeasurement, setEditingMeasurement] = useState<string | null>(null);
+  const [displaySetsWithDeletions, setDisplaySetsWithDeletions] = useState<Set<string>>(new Set());
 
   const { viewportGridService, displaySetService, measurementService } = servicesManager.services;
 
@@ -85,6 +86,18 @@ export const useMeasurementsPanel = ({
       setImages([]);
       return;
     }
+
+    // Only keep deletion tracking for currently displayed images
+    const currentDisplaySetUIDs = new Set(currentImages.map(img => img.displaySetInstanceUID));
+    setDisplaySetsWithDeletions(prev => {
+      const filteredDeletions = new Set<string>();
+      prev.forEach(uid => {
+        if (currentDisplaySetUIDs.has(uid)) {
+          filteredDeletions.add(uid);
+        }
+      });
+      return filteredDeletions;
+    });
 
     setLoading(true);
     try {
@@ -167,6 +180,18 @@ export const useMeasurementsPanel = ({
   // Handle measurement actions - unified for all layouts
   const handleMeasurementAction = useCallback(
     (command: string, uid: string, value?: string) => {
+      // Track deletions before executing the command
+      if (command === 'removeMeasurement') {
+        const measurement = measurementService.getMeasurement(uid);
+        if (measurement?.displaySetInstanceUID) {
+          setDisplaySetsWithDeletions(prev => new Set(prev).add(measurement.displaySetInstanceUID));
+          console.log(
+            '[useMeasurementsPanel] Tracked deletion for display set:',
+            measurement.displaySetInstanceUID
+          );
+        }
+      }
+
       if (command === 'updateMeasurementLabel') {
         // Handle inline label update
         const measurement = measurementService.getMeasurement(uid);
@@ -184,7 +209,7 @@ export const useMeasurementsPanel = ({
         });
       }
     },
-    [measurementService, commandsManager, images]
+    [measurementService, commandsManager, images, setDisplaySetsWithDeletions]
   );
 
   // Hide all measurements - unified for all layouts
@@ -200,6 +225,35 @@ export const useMeasurementsPanel = ({
       }
     });
   }, [commandsManager, images]);
+
+  // Get all display set UIDs that have changes (dirty measurements + deletions)
+  const getModifiedDisplaySetUIDs = useCallback(() => {
+    const dirtyUIDs = getDirtyDisplaySetUIDs(measurementService);
+    const deletedUIDs = Array.from(displaySetsWithDeletions);
+
+    // Combine and deduplicate
+    const allModifiedUIDs = [...new Set([...dirtyUIDs, ...deletedUIDs])];
+
+    console.log('[useMeasurementsPanel] Getting modified display sets:', {
+      dirtyDisplaySets: dirtyUIDs,
+      deletedDisplaySets: deletedUIDs,
+      allModified: allModifiedUIDs,
+    });
+
+    return allModifiedUIDs;
+  }, [measurementService, displaySetsWithDeletions]);
+
+  // Check for unsaved changes (combines isDirty measurements + deletions)
+  const hasUnsavedChanges = useCallback(() => {
+    const modifiedUIDs = getModifiedDisplaySetUIDs();
+    return modifiedUIDs.length > 0;
+  }, [getModifiedDisplaySetUIDs]);
+
+  // Clear unsaved changes tracking (called after successful save)
+  const clearUnsavedChanges = useCallback(() => {
+    setDisplaySetsWithDeletions(new Set());
+    console.log('[useMeasurementsPanel] Cleared unsaved changes tracking');
+  }, []);
 
   // Set up subscriptions
   useEffect(() => {
@@ -291,6 +345,11 @@ export const useMeasurementsPanel = ({
     // Editing state
     editingMeasurement,
     setEditingMeasurement,
+
+    // Unsaved changes
+    hasUnsavedChanges,
+    getModifiedDisplaySetUIDs,
+    clearUnsavedChanges,
 
     // State
     loading: isAnyLoading,

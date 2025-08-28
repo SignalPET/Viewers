@@ -14,7 +14,6 @@ import {
   saveSRForImage,
   showMeasurementNotification,
   getMeasurementsForDisplaySet,
-  getDirtyDisplaySetUIDs,
 } from '../utils/measurement.utils';
 
 const SignalPETMeasurementsPanel = ({
@@ -28,6 +27,9 @@ const SignalPETMeasurementsPanel = ({
     hideAllMeasurements,
     editingMeasurement,
     setEditingMeasurement,
+    hasUnsavedChanges,
+    getModifiedDisplaySetUIDs,
+    clearUnsavedChanges,
     loading: panelLoading,
     totalMeasurements,
   } = useMeasurementsPanel({
@@ -41,14 +43,24 @@ const SignalPETMeasurementsPanel = ({
       if (!isOhifMessage(event.data)) return;
 
       if (event.data.type === 'OHIF_NAVIGATION_ATTEMPT') {
-        // Parent is trying to navigate and wants us to handle the dialog
-        setShowUnsavedDialog(true);
+        // Check if there are any unsaved changes
+        if (!hasUnsavedChanges()) {
+          // No unsaved changes - auto-respond with continue
+          console.log(
+            '[SignalPETMeasurementsPanel] No unsaved changes, auto-continuing navigation'
+          );
+          sendDialogResponse('continue');
+        } else {
+          // Has unsaved changes - show dialog for user decision
+          console.log('[SignalPETMeasurementsPanel] Has unsaved changes, showing dialog');
+          setShowUnsavedDialog(true);
+        }
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [hasUnsavedChanges]);
 
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
 
@@ -68,6 +80,9 @@ const SignalPETMeasurementsPanel = ({
 
         await saveSRForImage(commandsManager, targetImage.displaySetInstanceUID);
 
+        // Clear unsaved changes tracking for successful save
+        clearUnsavedChanges();
+
         showMeasurementNotification(
           servicesManager.services.uiNotificationService,
           'success',
@@ -75,12 +90,8 @@ const SignalPETMeasurementsPanel = ({
           `Saved ${measurementCount} measurements for ${targetImage.displaySetDescription}`
         );
       } else {
-        // Save only images that have dirty measurements
-        const dirtyDisplaySetUIDs = getDirtyDisplaySetUIDs(
-          servicesManager.services.measurementService
-        );
-
-        if (dirtyDisplaySetUIDs.length === 0) {
+        // Save only images that have dirty measurements or deletions
+        if (!hasUnsavedChanges()) {
           showMeasurementNotification(
             servicesManager.services.uiNotificationService,
             'warning',
@@ -90,9 +101,12 @@ const SignalPETMeasurementsPanel = ({
           return;
         }
 
-        // Find images that match dirty display set UIDs
+        // Get modified display set UIDs for images to save (includes dirty + deletions)
+        const modifiedDisplaySetUIDs = getModifiedDisplaySetUIDs();
+
+        // Find images that match modified display set UIDs
         const imagesToSave = images.filter(image =>
-          dirtyDisplaySetUIDs.includes(image.displaySetInstanceUID)
+          modifiedDisplaySetUIDs.includes(image.displaySetInstanceUID)
         );
 
         let savedCount = 0;
@@ -113,6 +127,11 @@ const SignalPETMeasurementsPanel = ({
           } catch (error) {
             console.error(`Failed to save image ${image.displaySetDescription}:`, error);
           }
+        }
+
+        // Clear unsaved changes tracking after any successful saves
+        if (savedCount > 0) {
+          clearUnsavedChanges();
         }
 
         // Show appropriate notification for Save All

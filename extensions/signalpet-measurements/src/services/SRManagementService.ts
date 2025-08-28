@@ -425,7 +425,9 @@ export class SRManagementService implements SRManagementAPI {
   }
 
   private async hydrateSR(srDisplaySet: SRDisplaySet): Promise<void> {
-    await srDisplaySet.load();
+    if (!srDisplaySet.isLoaded) {
+      await srDisplaySet.load();
+    }
 
     if (!srDisplaySet.isHydrated) {
       console.log('[SRManagement] Clearing non-displayed measurements before hydrating SR...');
