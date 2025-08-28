@@ -24,7 +24,7 @@ async function autoLoadSRsForCurrentLayout(
   try {
     console.log('[SignalPET Measurements] Auto-loading SRs for current layout...');
 
-    const { viewportGridService, measurementService } = servicesManager.services;
+    const { viewportGridService } = servicesManager.services;
     const state = viewportGridService.getState();
 
     // Detect layout type
@@ -55,10 +55,6 @@ async function autoLoadSRsForCurrentLayout(
       `[SignalPET Measurements] Found ${uniqueDisplaySets.length} unique images:`,
       uniqueDisplaySets
     );
-
-    // Clear existing measurements to prevent conflicts
-    commandsManager.runCommand('signalpetCleanupMeasurements');
-    console.log('[SignalPET Measurements] Cleared existing measurements');
 
     const srService = new SRManagementService(servicesManager, commandsManager, extensionManager);
 
@@ -202,29 +198,39 @@ export default async function init({
   const handleSRSelectionEvent = async (data: SRSelectionEventData) => {
     console.log('[SignalPET Measurements] User selected SR:', data);
 
-    // Clear measurements for the specific target image (if provided)
-    if (data.targetImageDisplaySetUID) {
-      try {
-        commandsManager.runCommand('signalpetClearMeasurementsForImage', {
-          imageDisplaySetInstanceUID: data.targetImageDisplaySetUID,
-        });
+    // Handle previous SR version
+    try {
+      const { displaySetService } = servicesManager.services;
+      const previousSRDisplaySet = displaySetService.getDisplaySetByUID(
+        data.previousSRDisplaySetInstanceUID
+      );
+
+      if (previousSRDisplaySet) {
+        // Set the previous SR's isLoaded to false
+        previousSRDisplaySet.isLoaded = false;
         console.log(
-          `[SignalPET Measurements] Cleared measurements for target image: ${data.targetImageDisplaySetUID}`
+          `[SignalPET Measurements] Set previous SR isLoaded to false: ${data.previousSRDisplaySetInstanceUID}`
         );
-      } catch (error) {
-        console.error(
-          '[SignalPET Measurements] Failed to clear measurements for target image:',
-          error
+      } else {
+        console.warn(
+          `[SignalPET Measurements] Previous SR displaySet not found: ${data.previousSRDisplaySetInstanceUID}`
         );
       }
+    } catch (error) {
+      console.error('[SignalPET Measurements] Failed to handle previous SR version:', error);
     }
 
-    // Also cleanup measurements for images no longer displayed
+    // Clear measurements for the specific target image
     try {
-      commandsManager.runCommand('signalpetCleanupMeasurements');
+      commandsManager.runCommand('signalpetClearMeasurementsForImage', {
+        imageDisplaySetInstanceUID: data.targetImageDisplaySetUID,
+      });
+      console.log(
+        `[SignalPET Measurements] Cleared measurements for target image: ${data.targetImageDisplaySetUID}`
+      );
     } catch (error) {
       console.error(
-        '[SignalPET Measurements] Failed to cleanup measurements on SR selection:',
+        '[SignalPET Measurements] Failed to clear measurements for target image:',
         error
       );
     }
@@ -259,15 +265,6 @@ export default async function init({
 
   // Function to handle grid state changes (when user switches images)
   const handleGridStateChange = () => {
-    // First cleanup measurements for images no longer displayed
-    console.log('[SignalPET Measurements] Grid state changed, cleaning up measurements...');
-    try {
-      commandsManager.runCommand('signalpetCleanupMeasurements');
-    } catch (error) {
-      console.error('[SignalPET Measurements] Failed to cleanup measurements:', error);
-    }
-
-    // Auto-load SRs for current layout after grid state change
     console.log('[SignalPET Measurements] Grid state changed, auto-loading SRs...');
     autoLoadSRsForCurrentLayout(servicesManager, commandsManager, extensionManager);
   };

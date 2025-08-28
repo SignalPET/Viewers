@@ -6,8 +6,9 @@ import { PubSubService } from '@ohif/core';
 
 export interface SRSelectionEventData {
   displaySetInstanceUID: string;
-  targetImageDisplaySetUID?: string;
+  targetImageDisplaySetUID: string;
   source: 'single-image' | 'multi-image';
+  previousSRDisplaySetInstanceUID: string;
 }
 
 export class SRSelectionService extends PubSubService {

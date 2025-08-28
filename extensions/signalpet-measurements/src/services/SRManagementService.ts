@@ -429,9 +429,6 @@ export class SRManagementService implements SRManagementAPI {
       await srDisplaySet.load();
     }
     if (!srDisplaySet.isHydrated) {
-      console.log('[SRManagement] Clearing non-displayed measurements before hydrating SR...');
-      this.clearMeasurementsNotInCurrentDisplay();
-
       console.log('[SRManagement] Hydrating SR with image loading retry...');
       await this.hydrateWithImageLoadRetry(srDisplaySet);
     }

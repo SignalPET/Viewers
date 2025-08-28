@@ -142,14 +142,24 @@ export const useMeasurementsPanel = ({
 
   // Handle SR selection for any image
   const selectSR = useCallback(
-    (imageIndex: number, sr: SRVersion) => {
-      if (imageIndex >= images.length || !sr) return;
+    (imageIndex: number, newVersion: SRVersion) => {
+      if (imageIndex >= images.length || !newVersion) return;
 
       const targetImage = images[imageIndex];
+      const previousVersion = targetImage.selectedSR;
+
       console.log(
         `[Measurements Panel] User selected SR for image ${imageIndex}:`,
-        sr.displaySetInstanceUID
+        `New: ${newVersion.displaySetInstanceUID}, Previous: ${previousVersion?.displaySetInstanceUID || 'none'}`
       );
+
+      // Ensure we have a previous version (required by interface)
+      if (!previousVersion) {
+        console.error(
+          '[Measurements Panel] No previous SR version found - cannot proceed with selection'
+        );
+        return;
+      }
 
       // Update UI state to show selection and loading
       setImages(prevImages =>
@@ -157,7 +167,7 @@ export const useMeasurementsPanel = ({
           idx === imageIndex
             ? {
                 ...imageData,
-                selectedSR: sr,
+                selectedSR: newVersion,
                 loading: true,
               }
             : imageData
@@ -167,8 +177,9 @@ export const useMeasurementsPanel = ({
       // Use OHIF singleton service to broadcast SR selection event
       const { srSelectionService } = servicesManager.services;
       srSelectionService.requestSRSelection({
-        displaySetInstanceUID: sr.displaySetInstanceUID,
+        displaySetInstanceUID: newVersion.displaySetInstanceUID,
         targetImageDisplaySetUID: targetImage.displaySetInstanceUID,
+        previousSRDisplaySetInstanceUID: previousVersion.displaySetInstanceUID,
         source: images.length > 1 ? 'multi-image' : 'single-image',
       });
 
