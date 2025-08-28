@@ -1,22 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface UseUnsavedChangesOptions {
-  onBeforeUnload?: (hasChanges: boolean) => void;
+  servicesManager: any;
 }
 
-export const useUnsavedChanges = ({ onBeforeUnload }: UseUnsavedChangesOptions = {}) => {
+export const useUnsavedChanges = ({ servicesManager }: UseUnsavedChangesOptions) => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
-  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
 
   // Add beforeunload event listener to warn about unsaved changes
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (hasUnsavedChanges) {
+        const message = 'You have unsaved annotations. Are you sure you want to leave?';
         event.preventDefault();
-        event.returnValue = ''; // Chrome requires returnValue to be set
-        onBeforeUnload?.(hasUnsavedChanges);
-        return 'You have unsaved annotations. Are you sure you want to leave?';
+        event.returnValue = message; // Chrome requires returnValue to be set
+        return message;
       }
     };
 
@@ -25,70 +23,51 @@ export const useUnsavedChanges = ({ onBeforeUnload }: UseUnsavedChangesOptions =
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [hasUnsavedChanges, onBeforeUnload]);
-
-  // Expose method to check for unsaved changes before navigation
-  const checkUnsavedChanges = (navigationCallback?: () => void) => {
-    if (hasUnsavedChanges) {
-      setShowUnsavedDialog(true);
-      if (navigationCallback) {
-        setPendingNavigation(() => navigationCallback);
-      }
-      return false; // Navigation should be blocked
-    }
-    return true; // Safe to navigate
-  };
-
-  // Expose the checkUnsavedChanges function globally for external access
-  useEffect(() => {
-    (window as any).signalPETCheckUnsavedChanges = checkUnsavedChanges;
-
-    return () => {
-      delete (window as any).signalPETCheckUnsavedChanges;
-    };
   }, [hasUnsavedChanges]);
 
-  const markAsUnsaved = () => setHasUnsavedChanges(true);
-  const markAsSaved = () => setHasUnsavedChanges(false);
+  const markAsUnsaved = useCallback(() => {
+    setHasUnsavedChanges(true);
+  }, []);
 
-  const handleUnsavedDialogSave = async (saveCallback: () => Promise<void>) => {
-    try {
-      await saveCallback();
-      setShowUnsavedDialog(false);
-      markAsSaved();
-      if (pendingNavigation) {
-        pendingNavigation();
-        setPendingNavigation(null);
-      }
-    } catch (error) {
-      console.error('Failed to save annotations:', error);
-      // Keep dialog open on error
-      throw error;
-    }
-  };
+  const markAsSaved = useCallback(() => {
+    setHasUnsavedChanges(false);
+  }, []);
 
-  const handleUnsavedDialogLeave = () => {
-    markAsSaved();
-    setShowUnsavedDialog(false);
-    if (pendingNavigation) {
-      pendingNavigation();
-      setPendingNavigation(null);
-    }
-  };
+  // Auto-subscribe to measurement service events
+  useEffect(() => {
+    const { measurementService } = servicesManager.services;
+    if (!measurementService) return;
 
-  const handleUnsavedDialogClose = () => {
-    setShowUnsavedDialog(false);
-    setPendingNavigation(null);
-  };
+    const handleMeasurementChange = () => markAsUnsaved();
+
+    // Subscribe to all measurement change events
+    const subscriptions = [
+      measurementService.subscribe(
+        measurementService.EVENTS.MEASUREMENT_ADDED,
+        handleMeasurementChange
+      ),
+      measurementService.subscribe(
+        measurementService.EVENTS.MEASUREMENT_UPDATED,
+        handleMeasurementChange
+      ),
+      measurementService.subscribe(
+        measurementService.EVENTS.MEASUREMENT_REMOVED,
+        handleMeasurementChange
+      ),
+    ];
+
+    return () => {
+      subscriptions.forEach(subscription => {
+        if (subscription?.unsubscribe) {
+          subscription.unsubscribe();
+        }
+      });
+    };
+  }, [servicesManager, markAsUnsaved]);
 
   return {
     hasUnsavedChanges,
-    showUnsavedDialog,
     markAsUnsaved,
     markAsSaved,
-    checkUnsavedChanges,
-    handleUnsavedDialogSave,
-    handleUnsavedDialogLeave,
-    handleUnsavedDialogClose,
   };
 };

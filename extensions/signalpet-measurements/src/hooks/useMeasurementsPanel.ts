@@ -19,13 +19,11 @@ export interface ImageData {
 interface UseMeasurementsPanelOptions {
   servicesManager: any;
   commandsManager: any;
-  onMeasurementChange?: () => void;
 }
 
 export const useMeasurementsPanel = ({
   servicesManager,
   commandsManager,
-  onMeasurementChange,
 }: UseMeasurementsPanelOptions) => {
   const [images, setImages] = useState<ImageData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -221,18 +219,12 @@ export const useMeasurementsPanel = ({
           };
         })
       );
-      onMeasurementChange?.();
-    };
-
-    const updateData = () => {
-      loadImageData();
-      onMeasurementChange?.();
     };
 
     // Layout change subscriptions
     const gridStateSubscription = viewportGridService.subscribe(
       viewportGridService.EVENTS.GRID_STATE_CHANGED,
-      updateData
+      loadImageData
     );
 
     // Only subscribe to measurement updates (not add/remove which are handled by system)

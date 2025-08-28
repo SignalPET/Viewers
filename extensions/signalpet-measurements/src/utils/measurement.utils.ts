@@ -102,7 +102,10 @@ export const saveSRForImage = async (
  * Determines if a measurement action should mark measurements as unsaved
  */
 export const shouldMarkAsUnsaved = (command: string): boolean => {
-  const unsavedCommands = ['updateMeasurementLabel', 'removeMeasurement'];
+  const unsavedCommands = [
+    'updateMeasurementLabel', // User editing measurement label
+    'removeMeasurement', // User deleting measurement
+  ];
   return unsavedCommands.includes(command);
 };
 

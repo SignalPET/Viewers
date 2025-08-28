@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ScrollArea } from '@ohif/ui-next';
 
 // Components
@@ -11,7 +11,6 @@ import { useUnsavedChanges, useMeasurementsPanel } from '../hooks';
 // Utils
 import {
   saveSRForImage,
-  shouldMarkAsUnsaved,
   showMeasurementNotification,
   getMeasurementsForDisplaySet,
 } from '../utils/measurement.utils';
@@ -20,18 +19,6 @@ const SignalPETMeasurementsPanel = ({
   servicesManager,
   commandsManager,
 }: SignalPETMeasurementsPanelProps) => {
-  // Unsaved changes management
-  const {
-    hasUnsavedChanges,
-    showUnsavedDialog,
-    markAsUnsaved,
-    markAsSaved,
-    handleUnsavedDialogSave,
-    handleUnsavedDialogLeave,
-    handleUnsavedDialogClose,
-  } = useUnsavedChanges();
-
-  // Unified measurements panel management (includes everything)
   const {
     images,
     selectSR,
@@ -44,26 +31,7 @@ const SignalPETMeasurementsPanel = ({
   } = useMeasurementsPanel({
     servicesManager,
     commandsManager,
-    onMeasurementChange: markAsUnsaved,
   });
-
-  // Wrapper to track unsaved changes
-  const handleMeasurementActionWithTracking = (command: string, uid: string, value?: string) => {
-    // Track changes for commands that modify measurements
-    if (shouldMarkAsUnsaved(command)) {
-      markAsUnsaved();
-    }
-
-    handleMeasurementAction(command, uid, value);
-  };
-
-  // Unified SR selection handler (works for single or multi-image)
-  const handleSRSelection = (sr: any, imageIndex: number = 0) => {
-    if (!sr) return;
-
-    console.log('[Panel] User selected SR for image', imageIndex);
-    selectSR(imageIndex, sr);
-  };
 
   // Handle save measurements: imageIndex = save that image, no index = save all
   const handleSaveMeasurements = async (imageIndex?: number) => {
@@ -134,7 +102,6 @@ const SignalPETMeasurementsPanel = ({
           );
         }
       }
-      markAsSaved();
     } catch (error) {
       // Handle validation errors (no measurements, etc.)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -157,9 +124,40 @@ const SignalPETMeasurementsPanel = ({
     }
   };
 
-  // Unsaved dialog save handler
+  // Simple dialog state management
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+
+  // Unsaved changes management with automatic measurement tracking
+  const { hasUnsavedChanges, markAsUnsaved, markAsSaved } = useUnsavedChanges({
+    servicesManager, // Auto-track measurement changes
+  });
+
+  // Unified SR selection handler (works for single or multi-image)
+  const handleSRSelection = (sr: any, imageIndex: number = 0) => {
+    if (!sr) return;
+
+    console.log('[Panel] User selected SR for image', imageIndex);
+    selectSR(imageIndex, sr);
+  };
+
+  // Simple dialog handlers
   const handleDialogSave = async () => {
-    await handleUnsavedDialogSave(() => handleSaveMeasurements());
+    try {
+      await handleSaveMeasurements();
+      markAsSaved();
+      setShowUnsavedDialog(false);
+    } catch (error) {
+      console.error('Failed to save measurements:', error);
+    }
+  };
+
+  const handleDialogLeave = () => {
+    markAsSaved();
+    setShowUnsavedDialog(false);
+  };
+
+  const handleDialogClose = () => {
+    setShowUnsavedDialog(false);
   };
 
   return (
@@ -170,7 +168,7 @@ const SignalPETMeasurementsPanel = ({
       >
         {/* Header - unified for all layouts */}
         <MeasurementHeader
-          onSaveMeasurements={() => handleSaveMeasurements()}
+          onSaveMeasurements={handleSaveMeasurements}
           loading={panelLoading}
           measurementCount={totalMeasurements}
           onHideAll={hideAllMeasurements}
@@ -180,7 +178,7 @@ const SignalPETMeasurementsPanel = ({
         {/* Measurements Body - unified for all layouts */}
         <MultiImageMeasurementsBody
           imagesMeasurements={images}
-          onAction={handleMeasurementActionWithTracking}
+          onAction={handleMeasurementAction}
           editingMeasurement={editingMeasurement}
           setEditingMeasurement={setEditingMeasurement}
           onSRSelection={(imageIndex, sr) => handleSRSelection(sr, imageIndex)}
@@ -192,9 +190,9 @@ const SignalPETMeasurementsPanel = ({
       {/* Unsaved Annotations Dialog */}
       {showUnsavedDialog && (
         <UnsavedAnnotationsDialog
-          onClose={handleUnsavedDialogClose}
+          onClose={handleDialogClose}
           onSave={handleDialogSave}
-          onLeaveWithoutSaving={handleUnsavedDialogLeave}
+          onLeaveWithoutSaving={handleDialogLeave}
           loading={panelLoading}
         />
       )}
