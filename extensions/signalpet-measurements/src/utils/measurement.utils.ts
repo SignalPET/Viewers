@@ -81,6 +81,24 @@ export const getMeasurementsForDisplaySet = (
 };
 
 /**
+ * Gets display set UIDs that have dirty (unsaved) measurements
+ */
+export const getDirtyDisplaySetUIDs = (measurementService: any): string[] => {
+  const allMeasurements = measurementService.getMeasurements();
+
+  // Get unique display set UIDs that have dirty measurements
+  const dirtyDisplaySetUIDs = new Set<string>();
+
+  allMeasurements.forEach((measurement: any) => {
+    if (measurement.isDirty === true && measurement.displaySetInstanceUID) {
+      dirtyDisplaySetUIDs.add(measurement.displaySetInstanceUID);
+    }
+  });
+
+  return Array.from(dirtyDisplaySetUIDs);
+};
+
+/**
  * Pure save function - saves measurements for a specific image
  * Note: signalpetSaveSR command handles filtering measurements by imageDisplaySetInstanceUID
  */

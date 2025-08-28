@@ -9,11 +9,12 @@ import MultiImageMeasurementsBody from './components/MultiImageMeasurementsBody'
 import { useUnsavedChanges, useMeasurementsPanel } from '../hooks';
 
 // Utils
-import { isOhifMessage, sendDialogResponse } from '../utils/simple-messaging';
+import { isOhifMessage, sendDialogResponse } from '../utils/messaging';
 import {
   saveSRForImage,
   showMeasurementNotification,
   getMeasurementsForDisplaySet,
+  getDirtyDisplaySetUIDs,
 } from '../utils/measurement.utils';
 
 const SignalPETMeasurementsPanel = ({
@@ -51,7 +52,7 @@ const SignalPETMeasurementsPanel = ({
 
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
 
-  // Handle save measurements: imageIndex = save that image, no index = save all
+  // Handle save measurements: imageIndex = save that image, no index = save only dirty images
   const handleSaveMeasurements = async (imageIndex?: number) => {
     try {
       if (imageIndex !== undefined) {
@@ -74,12 +75,30 @@ const SignalPETMeasurementsPanel = ({
           `Saved ${measurementCount} measurements for ${targetImage.displaySetDescription}`
         );
       } else {
-        // Save all images with bulk notification
-        const totalImages = images.length;
+        // Save only images that have dirty measurements
+        const dirtyDisplaySetUIDs = getDirtyDisplaySetUIDs(
+          servicesManager.services.measurementService
+        );
+
+        if (dirtyDisplaySetUIDs.length === 0) {
+          showMeasurementNotification(
+            servicesManager.services.uiNotificationService,
+            'warning',
+            'No Changes',
+            'No unsaved changes to save'
+          );
+          return;
+        }
+
+        // Find images that match dirty display set UIDs
+        const imagesToSave = images.filter(image =>
+          dirtyDisplaySetUIDs.includes(image.displaySetInstanceUID)
+        );
+
         let savedCount = 0;
         let totalMeasurements = 0;
 
-        for (const image of images) {
+        for (const image of imagesToSave) {
           try {
             // Get count for notification purposes
             const measurementCount = getMeasurementsForDisplaySet(
@@ -97,26 +116,26 @@ const SignalPETMeasurementsPanel = ({
         }
 
         // Show appropriate notification for Save All
-        if (savedCount === totalImages) {
+        if (savedCount === imagesToSave.length) {
           showMeasurementNotification(
             servicesManager.services.uiNotificationService,
             'success',
-            'Save All Complete',
-            `Successfully saved ${totalMeasurements} measurements across ${savedCount} images`
+            'Save Complete',
+            `Successfully saved ${totalMeasurements} measurements across ${savedCount} images with changes`
           );
         } else if (savedCount > 0) {
           showMeasurementNotification(
             servicesManager.services.uiNotificationService,
             'warning',
             'Partial Save',
-            `Saved ${savedCount}/${totalImages} images (${totalMeasurements} measurements)`
+            `Saved ${savedCount}/${imagesToSave.length} images with changes (${totalMeasurements} measurements)`
           );
         } else {
           showMeasurementNotification(
             servicesManager.services.uiNotificationService,
             'error',
-            'Save All Failed',
-            'Failed to save any images'
+            'Save Failed',
+            'Failed to save any images with changes'
           );
         }
       }
@@ -152,9 +171,10 @@ const SignalPETMeasurementsPanel = ({
     selectSR(imageIndex, sr);
   };
 
-  // Dialog handlers
+  // Dialog handlers - save only images with dirty measurements
   const handleSaveFromDialog = async () => {
     try {
+      // Call handleSaveMeasurements without imageIndex to save only dirty images
       await handleSaveMeasurements();
       sendDialogResponse('continue');
     } catch (error) {
